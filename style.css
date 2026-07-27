@@ -189,3 +189,163 @@ hr {
         align-items: stretch !important;
     }
 }
+/* హార్వెస్ట్ టేబుల్ స్టైల్స్ */
+.harvest-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    margin-top: 15px;
+}
+
+.harvest-table th {
+    background: #f4f6f8;
+    color: #333;
+    padding: 10px 12px;
+    text-align: left;
+    font-size: 14px;
+    border-bottom: 2px solid #ddd;
+}
+
+.harvest-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #eee;
+    color: #555;
+    font-size: 13px;
+}
+
+.harvest-table tr:hover {
+    background: #fafafa;
+}
+/* జనరల్ బాడీ & ఫాంట్ సెట్టింగ్స్ */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f4f7f6;
+    color: #333;
+    margin: 0;
+    padding: 0;
+}
+
+/* హెడర్ డిజైన్ */
+header {
+    background: linear-gradient(135deg, #1b5e20, #2e7d32);
+    color: white;
+    text-align: center;
+    padding: 20px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+header h1 {
+    margin: 0;
+    font-size: 24px;
+}
+
+header p {
+    margin: 5px 0 0 0;
+    font-size: 14px;
+    opacity: 0.9;
+}
+
+/* మెయిన్ కంటైనర్ */
+.container {
+    max-width: 900px;
+    margin: 20px auto;
+    padding: 0 15px;
+}
+
+/* డాష్‌బోర్డ్ కార్డ్స్ */
+.dashboard {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.card {
+    background: #ffffff;
+    padding: 15px;
+    border-radius: 8px;
+    text-align: center;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    border-top: 4px solid #2e7d32;
+}
+
+.card h2 {
+    margin: 0;
+    color: #2e7d32;
+    font-size: 22px;
+}
+
+.card p {
+    margin: 5px 0 0 0;
+    color: #666;
+    font-size: 13px;
+}
+
+/* ఫారమ్ బాక్సెస్ */
+.formBox {
+    background: #ffffff;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+.formBox h2 {
+    margin-top: 0;
+    font-size: 18px;
+    color: #333;
+    border-bottom: 2px solid #e0e0e0;
+    padding-bottom: 8px;
+}
+
+/* ఇన్‌పుట్స్ మరియు సెలెక్ట్ బాక్సులు */
+input[type="text"], input[type="number"], input[type="date"], select {
+    width: 100%;
+    padding: 10px;
+    margin: 8px 0;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+    font-size: 14px;
+}
+
+input:focus, select:focus {
+    border-color: #2e7d32;
+    outline: none;
+    box-shadow: 0 0 5px rgba(46, 125, 50, 0.3);
+}
+
+/* బటన్స్ డిజైన్ */
+button {
+    background-color: #2e7d32;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    transition: background 0.3s ease;
+    width: 100%;
+    margin-top: 5px;
+}
+
+button:hover {
+    background-color: #1b5e20;
+}
+
+/* టాప్ ఫిల్టర్ బార్ & డౌన్‌లోడ్ బటన్ అలైన్‌మెంట్ */
+.topBar {
+    background: #fff;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 20px;
+}

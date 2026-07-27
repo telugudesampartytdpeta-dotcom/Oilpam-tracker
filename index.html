@@ -47,10 +47,11 @@
         <input type="date" id="endDate">
     </div>
 
-    <!-- Download CSV Button -->
-    <button id="downloadCSV" style="background-color: #2e7d32; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer;">
-        📥 Download Harvest CSV
-    </button>
+<!-- Download CSV Button -->
+<button onclick="downloadHarvestCSV()" id="downloadCSV" style="background-color: #2e7d32; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer;">
+    📥 Download Harvest CSV
+</button>
+
 </div>
 
 <div class="dashboard">
@@ -427,8 +428,24 @@ placeholder="Harvest Tons">
 <button id="saveHarvest">
 
 Save Harvest
+<table class="harvest-table">
+    <thead>
+        <tr>
+            <th>రైతు పేరు</th>
+            <th>SAP ID</th>
+            <th>ల్యాండ్ ID</th>
+            <th>హార్వెస్ట్ తేది</th>
+            <th>గడువు స్థితి</th>
+        </tr>
+    </thead>
+    <tbody id="harvestedTableBody">
+        <!-- డేటా ఇక్కడ వస్తుంది -->
+    </tbody>
+</table>
+
 
 </button>
+
 
 </div>
 
@@ -437,6 +454,8 @@ Save Harvest
 <h2>Farmers List</h2>
 
 <div id="farmerList">
+  
+  
 
 </div>
 

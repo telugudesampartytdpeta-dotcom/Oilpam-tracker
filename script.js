@@ -105,6 +105,7 @@ function renderFarmerCards(filteredData = null) {
                     <div style="display:flex; justify-content:space-between; align-items:center;">
                         <span><strong>Land ID:</strong> ${land.landId} (${land.area} Acres)</span>
                         <div>
+                            <button onclick="selectFarmerForHarvest(${fIdx}, ${lIdx})" style="background:#e8f5e9; color:#2e7d32; border:1px solid #a5d6a7; padding:3px 8px; border-radius:4px; cursor:pointer; font-size:12px; margin-right:5px;">🌾 Harvester</button>
                             <button onclick="editLand(${fIdx}, ${lIdx})" style="font-size:11px; background:#f0f0f0; border:none; padding:3px 6px; cursor:pointer; margin-right:3px;">Edit Land</button>
                             <button onclick="deleteLand(${fIdx}, ${lIdx})" style="font-size:11px; background:#ffebee; color:#d32f2f; border:none; padding:3px 6px; cursor:pointer;">Delete</button>
                         </div>
@@ -139,8 +140,7 @@ function renderFarmerCards(filteredData = null) {
     });
 }
 
-
-// 3. 10 DAYS HARVEST HISTORY TABLE FUNCTION (వేరే టేబుల్ కోసం)
+// 3. 10 DAYS HARVEST HISTORY TABLE FUNCTION
 function renderHarvestedTable() {
     const tableBody = document.getElementById("harvestedTableBody");
     if (!tableBody) return;
@@ -160,7 +160,6 @@ function renderHarvestedTable() {
                         let diffTime = today - harvestDate;
                         let diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
-                        // హార్వెస్ట్ చేసిన తేదీ నుండి 10 రోజుల లోపు ఉంటే టేబుల్‌లో చూపించడం
                         if (diffDays >= 0 && diffDays <= 10) {
                             harvestedCount++;
                             let remainingDays = 10 - diffDays;
@@ -186,7 +185,62 @@ function renderHarvestedTable() {
     }
 }
 
-// 4. EVENT LISTENERS
+// 4. DATE RANGE FILTER CSV DOWNLOAD FUNCTION
+function downloadHarvestCSV() {
+    let startDate = document.getElementById("startDate") ? document.getElementById("startDate").value : "";
+    let endDate = document.getElementById("endDate") ? document.getElementById("endDate").value : "";
+    
+    let csvRows = [];
+    csvRows.push(["Farmer Name", "SAP ID", "Land ID", "Date", "Acres", "Tons"].join(","));
+
+    let recordCount = 0;
+
+    farmers.forEach(farmer => {
+        if (farmer.lands) {
+            farmer.lands.forEach(land => {
+                if (land.history) {
+                    land.history.forEach(h => {
+                        let hDate = h.date;
+                        
+                        let matches = true;
+                        if (startDate && hDate < startDate) matches = false;
+                        if (endDate && hDate > endDate) matches = false;
+
+                        if (matches) {
+                            let row = [
+                                `"${farmer.name || ''}"`,
+                                `"${farmer.sap || ''}"`,
+                                `"${land.landId || ''}"`,
+                                `"${hDate || ''}"`,
+                                `"${h.acres || ''}"`,
+                                `"${h.tons || ''}"`
+                            ];
+                            csvRows.push(row.join(","));
+                            recordCount++;
+                        }
+                    });
+                }
+            });
+        }
+    });
+
+    if (recordCount === 0) {
+        alert("సెలెక్ట్ చేసిన తేదీలలో హార్వెస్ట్ రికార్డులు ఏవీ లేవు!");
+        return;
+    }
+
+    let csvString = "\uFEFF" + csvRows.join("\n");
+    let blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+    let url = URL.createObjectURL(blob);
+    let a = document.createElement('a');
+    a.setAttribute('href', url);
+    a.setAttribute('download', startDate && endDate ? `Harvest_${startDate}_to_${endDate}.csv` : 'All_Harvest_History.csv');
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
+
+// 5. EVENT LISTENERS (SINGLE DOMContentLoaded)
 document.addEventListener("DOMContentLoaded", () => {
     renderFarmerCards();
     updateDashboard();
@@ -326,12 +380,13 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    // CSV Download Button Binding
     const downloadCSVBtn = document.getElementById("downloadCSV");
     if (downloadCSVBtn) {
-        downloadCSVBtn.addEventListener("click", downloadCSV);
+        downloadCSVBtn.addEventListener("click", downloadHarvestCSV);
     }
 
-    // Excel / CSV File Upload Handling (Farmowner ID ద్వారా గ్రూప్ అయ్యేలా)
+    // Excel / CSV File Upload Handling
     const importBtn = document.getElementById("importBtn");
     const excelFileInput = document.getElementById("excelFileInput");
 
@@ -357,7 +412,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         return;
                     }
 
-                    farmers = []; // పాత డేటా క్లియర్ చేసి కొత్త డేటా లోడ్ చేయడం
+                    farmers = [];
 
                     excelData.forEach(row => {
                         let firstName = row['Farm Owner Name'] ? String(row['Farm Owner Name']).trim() : '';
@@ -411,6 +466,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 
+// Helper Functions
 function editFarmer(fIdx) {
     const farmer = farmers[fIdx];
     const newName = prompt("రైతు పేరు:", farmer.name);
@@ -475,42 +531,6 @@ function deleteHarvest(fIdx, lIdx, hIdx) {
     }
 }
 
-function downloadCSV() {
-    let csvContent = "Farmer Name,SAP ID,Owner ID,Supplier Name,Land ID,Land Area,Harvest Date,Harvest Acres,Harvest Tons\n";
-    let recordCount = 0;
-
-    if (farmers.length === 0) {
-        alert("డౌన్‌లోడ్ చేయడానికి డేటా లేదు!");
-        return;
-    }
-
-    farmers.forEach(farmer => {
-        if (farmer.lands && farmer.lands.length > 0) {
-            farmer.lands.forEach(land => {
-                if (land.history && land.history.length > 0) {
-                    land.history.forEach(h => {
-                        csvContent += `"${farmer.name || ''}","${farmer.sap || ''}","${farmer.owner || ''}","${farmer.supplier || ''}","${land.landId || ''}","${land.area || ''}","${h.date || ''}","${h.acres || ''}","${h.tons || ''}"\n`;
-                        recordCount++;
-                    });
-                }
-            });
-        }
-    });
-
-    if (recordCount === 0) {
-        alert("ఇప్పటివరకు ఏ హార్వెస్ట్ రికార్డులు నమోదు చేయబడలేదు!");
-        return;
-    }
-
-    let blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
-    let url = URL.createObjectURL(blob);
-    let link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", "harvest_completed_data.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-}
 function selectFarmerForHarvest(fIdx, lIdx) {
     const harvestFarmer = document.getElementById("harvestFarmer");
     if (harvestFarmer) {
@@ -526,59 +546,3 @@ function selectFarmerForHarvest(fIdx, lIdx) {
         harvestFarmer.scrollIntoView({ behavior: 'smooth' });
     }
 }
-// CSV డౌన్‌లోడ్ చేయడానికి ఫంక్షన్
-function downloadHarvestCSV() {
-    let startDate = document.getElementById("startDate") ? document.getElementById("startDate").value : "";
-    let endDate = document.getElementById("endDate") ? document.getElementById("endDate").value : "";
-    
-    let csvRows = [];
-    // CSV హెడర్స్
-    csvRows.push(["Farmer Name", "SAP ID", "Land ID", "Date", "Acres", "Tons"].join(","));
-
-    farmers.forEach(farmer => {
-        if (farmer.lands) {
-            farmer.lands.forEach(land => {
-                if (land.history) {
-                    land.history.forEach(h => {
-                        let hDate = h.date;
-                        
-                        // డేట్ రేంజ్ ఫిల్టర్ లాజిక్
-                        let matches = true;
-                        if (startDate && hDate < startDate) matches = false;
-                        if (endDate && hDate > endDate) matches = false;
-
-                        if (matches) {
-                            let row = [
-                                `"${farmer.name || ''}"`,
-                                `"${farmer.sap || ''}"`,
-                                `"${land.landId || ''}"`,
-                                `"${hDate || ''}"`,
-                                `"${h.acres || ''}"`,
-                                `"${h.tons || ''}"`
-                            ];
-                            csvRows.push(row.join(","));
-                        }
-                    });
-                }
-            });
-        }
-    });
-
-    // CSV ఫైల్‌గా డౌన్‌లోడ్ చేయడం
-    let csvString = csvRows.join("\n");
-    let blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
-    let url = URL.createObjectURL(blob);
-    let a = document.createElement('a');
-    a.setAttribute('href', url);
-    a.setAttribute('download', startDate && endDate ? `Harvest_${startDate}_to_${endDate}.csv` : 'All_Harvest_History.csv');
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-}
-document.addEventListener("DOMContentLoaded", () => {
-    let btn = document.getElementById("downloadCSV");
-    if (btn) {
-        btn.addEventListener("click", downloadHarvestCSV);
-    }
-});
-
