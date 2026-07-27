@@ -219,7 +219,7 @@ hr {
 .harvest-table tr:hover {
     background: #fafafa;
 }
-/* జనరల్ బాడీ & ఫాంట్ సెట్టింగ్స్ */
+/* జనరల్ బాడీ & ఫాంట్ సెట్టింగ్्स */
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background-color: #f4f7f6;
@@ -233,89 +233,118 @@ header {
     background: linear-gradient(135deg, #1b5e20, #2e7d32);
     color: white;
     text-align: center;
-    padding: 20px;
+    padding: 15px;
     box-shadow: 0 4px 6px rgba(0,0,0,0.1);
 }
 
 header h1 {
     margin: 0;
-    font-size: 24px;
+    font-size: 22px;
 }
 
 header p {
-    margin: 5px 0 0 0;
-    font-size: 14px;
+    margin: 3px 0 0 0;
+    font-size: 13px;
     opacity: 0.9;
 }
 
 /* మెయిన్ కంటైనర్ */
 .container {
     max-width: 900px;
-    margin: 20px auto;
-    padding: 0 15px;
+    margin: 15px auto;
+    padding: 0 10px;
 }
 
-/* డాష్‌బోర్డ్ కార్డ్స్ */
-.dashboard {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+/* స్క్రీన్‌షాట్ లాగా ఫారమ్‌లు/బాక్స్‌లు పక్కపక్కనే (Side by Side) రావడానికి */
+.form-row, .form-container {
+    display: flex;
     gap: 15px;
-    margin-bottom: 20px;
+    flex-wrap: wrap;
+    margin-bottom: 15px;
 }
 
-.card {
+.formBox {
+    flex: 1;
+    min-width: 280px;
     background: #ffffff;
     padding: 15px;
     border-radius: 8px;
-    text-align: center;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-    border-top: 4px solid #2e7d32;
-}
-
-.card h2 {
-    margin: 0;
-    color: #2e7d32;
-    font-size: 22px;
-}
-
-.card p {
-    margin: 5px 0 0 0;
-    color: #666;
-    font-size: 13px;
-}
-
-/* ఫారమ్ బాక్సెస్ */
-.formBox {
-    background: #ffffff;
-    padding: 20px;
-    border-radius: 8px;
-    margin-bottom: 20px;
     box-shadow: 0 2px 5px rgba(0,0,0,0.05);
 }
 
 .formBox h2 {
     margin-top: 0;
+    font-size: 16px;
+    color: #2e7d32;
+    border-bottom: 2px solid #f1f8f5;
+    padding-bottom: 6px;
+}
+
+/* క్విక్ యాక్షన్ బటన్స్ గ్రిడ్ (Add Farmer, Add Land లాంటివి) */
+.quick-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.action-btn-card {
+    background: #ffffff;
+    padding: 12px;
+    border-radius: 8px;
+    text-align: center;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    border-top: 3px solid #2e7d32;
+    font-size: 13px;
+    font-weight: bold;
+    color: #2e7d32;
+    cursor: pointer;
+}
+
+/* డాష్‌బోర్డ్ కార్డ్స్ */
+.dashboard {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.card {
+    background: #ffffff;
+    padding: 12px;
+    border-radius: 8px;
+    text-align: center;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    border-top: 3px solid #2e7d32;
+}
+
+.card h2 {
+    margin: 0;
+    color: #2e7d32;
     font-size: 18px;
-    color: #333;
-    border-bottom: 2px solid #e0e0e0;
-    padding-bottom: 8px;
+}
+
+.card p {
+    margin: 3px 0 0 0;
+    color: #666;
+    font-size: 12px;
 }
 
 /* ఇన్‌పుట్స్ మరియు సెలెక్ట్ బాక్సులు */
 input[type="text"], input[type="number"], input[type="date"], select {
     width: 100%;
-    padding: 10px;
-    margin: 8px 0;
+    padding: 8px;
+    margin: 6px 0;
     border: 1px solid #ccc;
     border-radius: 4px;
     box-sizing: border-box;
-    font-size: 14px;
+    font-size: 13px;
 }
 
 input:focus, select:focus {
     border-color: #2e7d32;
     outline: none;
-    box-shadow: 0 0 5px rgba(46, 125, 50, 0.3);
+    box-shadow: 0 0 4px rgba(46, 125, 50, 0.3);
 }
 
 /* బటన్స్ డిజైన్ */
@@ -323,12 +352,11 @@ button {
     background-color: #2e7d32;
     color: white;
     border: none;
-    padding: 10px 15px;
+    padding: 8px 12px;
     border-radius: 4px;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: bold;
-    transition: background 0.3s ease;
     width: 100%;
     margin-top: 5px;
 }
@@ -337,15 +365,26 @@ button:hover {
     background-color: #1b5e20;
 }
 
-/* టాప్ ఫిల్టర్ బార్ & డౌన్‌లోడ్ బటన్ అలైన్‌మెంట్ */
-.topBar {
+/* టేబుల్ స్టైలింగ్ */
+table {
+    width: 100%;
+    border-collapse: collapse;
     background: #fff;
-    padding: 15px;
-    border-radius: 8px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    align-items: center;
-    margin-bottom: 20px;
+    margin-top: 10px;
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
+
+th, td {
+    padding: 8px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+    font-size: 12px;
+}
+
+th {
+    background-color: #f1f8f5;
+    color: #2e7d32;
+}
+
