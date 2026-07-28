@@ -74,7 +74,7 @@ function updateFarmerNameSelectDropdown() {
     }
 }
 
-// 2. RENDER FARMER CARDS
+// 2. RENDER FARMER CARDS (క్రింద హార్వెస్ట్ టేబుల్ కనిపించకుండా ఉండేలా)
 function renderFarmerCards(filteredData = null) {
     const list = document.getElementById("farmerList");
     if (!list) return;
@@ -96,6 +96,7 @@ function renderFarmerCards(filteredData = null) {
             <div style="display:flex; justify-content:space-between; align-items:center;">
                 <h3 style="margin:0 0 10px 0; color:#333;">${farmer.name}</h3>
                 <div>
+                    <button onclick="viewFarmerFullHistory(${fIdx})" style="background:#17a2b8; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; margin-right:5px; width:auto; font-size:11px;">History</button>
                     <button onclick="editFarmer(${fIdx})" style="background:#e3f2fd; color:#1976d2; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; margin-right:5px; width:auto;">Edit</button>
                     <button onclick="deleteFarmer(${fIdx})" style="background:#ffebee; color:#d32f2f; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; width:auto;">Delete</button>
                 </div>
@@ -113,36 +114,16 @@ function renderFarmerCards(filteredData = null) {
                             <button onclick="editLand(${fIdx}, ${lIdx})" style="font-size:11px; background:#f0f0f0; border:none; padding:3px 6px; cursor:pointer; margin-right:3px; width:auto;">Edit</button>
                             <button onclick="deleteLand(${fIdx}, ${lIdx})" style="font-size:11px; background:#ffebee; color:#d32f2f; border:none; padding:3px 6px; cursor:pointer; width:auto;">Delete</button>
                         </div>
-                    </div>`;
-
-                if (land.history && land.history.length > 0) {
-                    card += `<table style="width:100%; margin-top:8px; border-collapse:collapse; font-size:13px;">
-                                <tr style="background:#eee; text-align:left;">
-                                    <th style="padding:4px;">Date</th>
-                                    <th style="padding:4px;">Acres</th>
-                                    <th style="padding:4px;">Tons</th>
-                                    <th style="padding:4px;">Action</th>
-                                </tr>`;
-                    land.history.forEach((h, hIdx) => {
-                        card += `<tr>
-                                    <td style="padding:4px; border-bottom:1px solid #ddd;">${h.date}</td>
-                                    <td style="padding:4px; border-bottom:1px solid #ddd;">${h.acres}</td>
-                                    <td style="padding:4px; border-bottom:1px solid #ddd;">${h.tons}</td>
-                                    <td style="padding:4px; border-bottom:1px solid #ddd;">
-                                        <button onclick="editHarvest(${fIdx}, ${lIdx}, ${hIdx})" style="color:blue; background:none; border:none; cursor:pointer; font-size:11px; width:auto;">Edit</button>
-                                        <button onclick="deleteHarvest(${fIdx}, ${lIdx}, ${hIdx})" style="color:red; background:none; border:none; cursor:pointer; font-size:11px; width:auto;">Delete</button>
-                                    </td>
-                                 </tr>`;
-                    });
-                    card += `</table>`;
-                }
-                card += `</div>`;
+                    </div>
+                </div>`;
             });
         }
         card += `</div>`;
         list.innerHTML += card;
     });
 }
+
+
 
 // 3. 10 DAYS HARVEST HISTORY TABLE FUNCTION
 function renderHarvestedTable() {
@@ -593,4 +574,435 @@ function renderHarvestedTable() {
     if (harvestedCount === 0) {
         popupContent.innerHTML = `<div style="text-align:center; color:#888; padding:15px;">గత 10 రోజుల్లో హార్వెస్ట్ చేసినవి ఏవీ లేవు</div>`;
     }
+}
+// 1. "Harvest Done" క్లిక్ చేసినప్పుడు నేటి తేదీతో హార్వెస్ట్ ఎంట్రీ సేవ్ అయ్యేలా
+function markHarvestDone(fIdx, lIdx) {
+    if (confirm("ఈ ల్యాండ్‌కి ఈరోజు హార్వెస్ట్ పూర్తయిందని రికార్డ్ చేయాలా?")) {
+        let land = farmers[fIdx].lands[lIdx];
+        
+        let tons = prompt("హార్వెస్ట్ అయిన టన్స్ (Tons) నమోదు చేయండి:", "0");
+        let acres = prompt("హార్వెస్ట్ అయిన ఎకరాలు (Acres):", land.area || "1");
+
+        if (tons !== null && acres !== null) {
+            // నేటి తేదీని YYYY-MM-DD రూపంలో తీసుకోవడం
+            let todayStr = new Date().toISOString().split('T')[0];
+
+            if (!land.history) land.history = [];
+
+            // కొత్త హార్వెస్ట్ రికార్డును యాడ్ చేయడం (ఇది ఈరోజే జరిగింది కాబట్టి diffDays = 0 అవుతుంది, అంటే 10 రోజులు మిగిలి ఉన్నాయి)
+            land.history.push({
+                date: todayStr,
+                acres: acres,
+                tons: tons
+            });
+
+            saveData();
+            alert("సక్సెస్‌ఫుల్‌గా హార్వెస్ట్ రికార్డ్ చేయబడింది!");
+        }
+    }
+}
+
+// 2. కేవలం గత 10 రోజుల్లో హార్వెస్ట్ జరిగిన ల్యాండ్స్ మాత్రమే కనిపించేలా
+function renderHarvestedTable() {
+    const popupContent = document.getElementById("harvestPopupContent");
+    const badgeCount = document.getElementById("harvestBadgeCount");
+    
+    if (!popupContent || !badgeCount) return;
+
+    popupContent.innerHTML = "";
+    let harvestItems = [];
+    
+    // కరెక్ట్ లోకల్ డేట్ తీసుకోవడానికి
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    farmers.forEach((farmer, fIdx) => {
+        if (farmer.lands && farmer.lands.length > 0) {
+            farmer.lands.forEach((land, lIdx) => {
+                if (land.history && land.history.length > 0) {
+                    let lastHarvest = land.history.slice().reverse().find(h => h.date);
+                    
+                    if (lastHarvest && lastHarvest.date) {
+                        let harvestDate = new Date(lastHarvest.date);
+                        harvestDate.setHours(0, 0, 0, 0);
+                        
+                        let diffTime = today - harvestDate;
+                        let diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+                        // 0 నుండి 10 రోజుల మధ్యలో హార్వెస్ట్ జరిగినవి మాత్రమే (0 అంటే ఈరోజే హార్వెస్ట్ అయింది, 10 అంటే 10 రోజుల క్రితం అయింది)
+                        if (diffDays >= 0 && diffDays <= 10) {
+                            let remainingDays = 10 - diffDays;
+                            harvestItems.push({
+                                fIdx: fIdx,
+                                lIdx: lIdx,
+                                farmerName: farmer.name,
+                                ownerId: farmer.owner || '-',
+                                landId: land.landId,
+                                lastDate: lastHarvest.date,
+                                remainingDays: remainingDays
+                            });
+                        }
+                    }
+                }
+            });
+        }
+    });
+
+    harvestItems.sort((a, b) => a.remainingDays - b.remainingDays);
+    badgeCount.innerText = harvestItems.length;
+
+    if (harvestItems.length === 0) {
+        popupContent.innerHTML = `<div style="text-align:center; color:#888; padding:15px;">గత 10 రోజుల్లో హార్వెస్ట్ చేసినవి ఏవీ లేవు</div>`;
+        return;
+    }
+
+    harvestItems.forEach(item => {
+        let badgeColor = item.remainingDays <= 2 ? '#ff4d4d' : (item.remainingDays <= 5 ? '#ffc107' : '#28a745');
+        
+        let div = document.createElement("div");
+        div.style.cssText = "padding: 8px 10px; border-bottom: 1px solid #f1f1f1; display: flex; justify-content: space-between; align-items: center; font-size: 12px;";
+        div.innerHTML = `
+            <div>
+                <strong style="color: #333;">${item.farmerName}</strong><br>
+                <span style="color: #666;">ID: ${item.ownerId} | Land: ${item.landId}</span><br>
+                <span style="background:${badgeColor}; color:white; padding:1px 5px; border-radius:10px; font-size:10px;">హార్వెస్ట్ జరిగి ${10 - item.remainingDays} రోజులైంది (ఇంకా ${item.remainingDays} రోజులు)</span>
+            </div>
+            <div>
+                <button onclick="markHarvestDone(${item.fIdx}, ${item.lIdx})" style="background:#28a745; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px; white-space:nowrap;">Harvest Done</button>
+            </div>
+        `;
+        popupContent.appendChild(div);
+    });
+}
+// "Harvest Done" క్లిక్ చేసినప్పుడు టన్స్ సేవ్ అవ్వడం, లిస్ట్ నుండి పోవడం మరియు Active Tasks / Total Tons అప్‌డేట్ అవ్వడం
+function markHarvestDone(fIdx, lIdx) {
+    if (confirm("ఈ ల్యాండ్‌కి ఈరోజు హార్వెస్ట్ పూర్తయిందని రికార్డ్ చేయాలా?")) {
+        let land = farmers[fIdx].lands[lIdx];
+        
+        let tons = prompt("హార్వెస్ట్ అయిన టన్స్ (Tons) నమోదు చేయండి:", "0");
+        let acres = prompt("హార్వెస్ట్ అయిన ఎకరాలు (Acres):", land.area || "1");
+
+        if (tons !== null && acres !== null) {
+            let parsedTons = parseFloat(tons) || 0;
+            let todayStr = new Date().toISOString().split('T')[0];
+
+            if (!land.history) land.history = [];
+
+            // నేటి తేదీతో కొత్త హార్వెస్ట్ రికార్డ్ యాడ్ చేయడం
+            land.history.push({
+                date: todayStr,
+                acres: acres,
+                tons: parsedTons
+            });
+
+            // డేటాను సేవ్ చేయడం
+            saveData();
+
+            // డాష్‌బోర్డ్ టోటల్స్ మరియు లిస్ట్ ని రిఫ్రెష్ చేయడం
+            if (typeof updateDashboard === 'function') {
+                updateDashboard(); // మీ ప్రాజెక్ట్‌లో టోటల్ టన్స్/టాస్క్స్ అప్‌డేట్ చేసే మెయిన్ ఫంక్షన్ పేరు ఇది అయితే
+            }
+            
+            // పాప్‌అప్ లిస్ట్‌ని వెంటనే అప్‌డేట్ చేయడం
+            renderHarvestedTable();
+
+            alert("సక్సెస్‌ఫుల్‌గా హార్వెస్ట్ రికార్డ్ చేయబడింది మరియు టోటల్స్ అప్‌డేట్ అయ్యాయి!");
+        }
+    }
+}
+// 1. హిస్టరీ పాప్‌అప్ ఓపెన్ చేయడానికి మరియు డేటా చూపించడానికి
+function viewHarvestHistory(fIdx, lIdx) {
+    let farmer = farmers[fIdx];
+    let land = farmer.lands[lIdx];
+
+    // ఒకవేళ హిస్టరీ పాప్‌అప్ HTML ఆల్రెడీ లేకపోతే డైనమిక్‌గా క్రియേట్ చేయడం
+    let modal = document.getElementById("historyPopupModal");
+    if (!modal) {
+        modal = document.createElement("div");
+        modal.id = "historyPopupModal";
+        modal.style.cssText = "display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:2000; justify-content:center; align-items:center;";
+        modal.innerHTML = `
+            <div style="background:white; width:90%; max-width:400px; padding:20px; border-radius:8px; box-shadow:0 4px 10px rgba(0,0,0,0.2); position:relative;">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee; padding-bottom:10px;">
+                    <h3 id="historyModalTitle" style="margin:0; font-size:16px; color:#333;">Harvest History</h3>
+                    <button onclick="closeHistoryPopup()" style="background:none; border:none; font-size:18px; cursor:pointer; color:#888;">✕</button>
+                </div>
+                <div id="historyModalBody" style="max-height:300px; overflow-y:auto; margin-top:15px; font-size:13px;">
+                    <!-- History list items -->
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+
+    // టైటిల్ మరియు బాడీ కంటెంట్ సెట్ చేయడం
+    document.getElementById("historyModalTitle").innerText = `${farmer.name} (Land: ${land.landId}) హిస్టరీ`;
+    let bodyDiv = document.getElementById("historyModalBody");
+    bodyDiv.innerHTML = "";
+
+    if (!land.history || land.history.length === 0) {
+        bodyDiv.innerHTML = `<div style="text-align:center; color:#888; padding:20px;">హార్వెస్ట్ హిస్టరీ ఏమీ లేదు</div>`;
+    } else {
+        let table = document.createElement("table");
+        table.style.cssText = "width:100%; border-collapse:collapse; font-size:12px;";
+        table.innerHTML = `
+            <thead>
+                <tr style="background:#f1f1f1; text-align:left;">
+                    <th style="padding:8px; border:1px solid #ddd;">తేదీ (Date)</th>
+                    <th style="padding:8px; border:1px solid #ddd;">ఎకరాలు</th>
+                    <th style="padding:8px; border:1px solid #ddd;">టన్స్</th>
+                </tr>
+            </thead>
+            <tbody id="historyTableBody"></tbody>
+        `;
+        bodyDiv.appendChild(table);
+
+        let tbody = document.getElementById("historyTableBody");
+        // లేటెస్ట్ రికార్డ్స్ పైన వచ్చేలా రివర్స్ చేయడం
+        land.history.slice().reverse().forEach(h => {
+            let row = document.createElement("tr");
+            row.innerHTML = `
+                <td style="padding:8px; border:1px solid #ddd;">${h.date || '-'}</td>
+                <td style="padding:8px; border:1px solid #ddd;">${h.acres || '-'}</td>
+                <td style="padding:8px; border:1px solid #ddd; font-weight:bold; color:#28a745;">${h.tons || '0'} Tons</td>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+
+    modal.style.display = "flex";
+}
+
+// హిస్టరీ పాప్‌అప్ క్లోజ్ చేయడానికి
+function closeHistoryPopup() {
+    let modal = document.getElementById("historyPopupModal");
+    if (modal) {
+        modal.style.display = "none";
+    }
+}
+// రైతు కార్డ్ వద్ద ఉన్న బటన్ నొక్కినప్పుడు ఆ రైతుకు సంబంధించిన మొత్తం ల్యాండ్స్ హిస్టరీని చూపించుటకు
+function viewFarmerFullHistory(farmerIndex) {
+    let farmer = farmers[farmerIndex];
+
+    let modal = document.getElementById("historyPopupModal");
+    if (!modal) {
+        modal = document.createElement("div");
+        modal.id = "historyPopupModal";
+        modal.style.cssText = "display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:2000; justify-content:center; align-items:center;";
+        modal.innerHTML = `
+            <div style="background:white; width:90%; max-width:450px; padding:20px; border-radius:8px; box-shadow:0 4px 10px rgba(0,0,0,0.2); position:relative; max-height:80vh; display:flex; flex-direction:column;">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee; padding-bottom:10px;">
+                    <h3 id="historyModalTitle" style="margin:0; font-size:16px; color:#333;">Farmer Harvest History</h3>
+                    <button onclick="closeHistoryPopup()" style="background:none; border:none; font-size:18px; cursor:pointer; color:#888;">✕</button>
+                </div>
+                <div id="historyModalBody" style="overflow-y:auto; margin-top:15px; font-size:13px; flex-grow:1;"></div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+
+    document.getElementById("historyModalTitle").innerText = `${farmer.name} (Owner ID: ${farmer.owner || '-'}) పూర్తి హిస్టరీ`;
+    let bodyDiv = document.getElementById("historyModalBody");
+    bodyDiv.innerHTML = "";
+
+    if (!farmer.lands || farmer.lands.length === 0) {
+        bodyDiv.innerHTML = `<div style="text-align:center; color:#888; padding:20px;">ల్యాండ్స్ వివరాలు ఏవీ లేవు</div>`;
+    } else {
+        let hasAnyHistory = false;
+
+        farmer.lands.forEach(land => {
+            if (land.history && land.history.length > 0) {
+                hasAnyHistory = true;
+                
+                // ల్యాండ్ హెడ్డింగ్
+                let landHeader = document.createElement("div");
+                landHeader.style.cssText = "font-weight:bold; color:#007bff; margin-top:10px; margin-bottom:5px; border-bottom:1px dashed #ddd; padding-bottom:3px;";
+                landHeader.innerText = `Land ID: ${land.landId} (Area: ${land.area || '-'})`;
+                bodyDiv.appendChild(landHeader);
+
+                // ఆ ల్యాండ్ హిస్టరీ టేబుల్
+                let table = document.createElement("table");
+                table.style.cssText = "width:100%; border-collapse:collapse; font-size:12px; margin-bottom:10px;";
+                table.innerHTML = `
+                    <thead>
+                        <tr style="background:#f9f9f9; text-align:left;">
+                            <th style="padding:6px; border:1px solid #ddd;">తేదీ (Date)</th>
+                            <th style="padding:6px; border:1px solid #ddd;">ఎకరాలు</th>
+                            <th style="padding:6px; border:1px solid #ddd;">టన్స్</th>
+                        </tr>
+                    </thead>
+                    <tbody class="land-hist-tbody"></tbody>
+                `;
+                bodyDiv.appendChild(table);
+
+                let tbody = table.querySelector(".land-hist-tbody");
+                land.history.slice().reverse().forEach(h => {
+                    let row = document.createElement("tr");
+                    row.innerHTML = `
+                        <td style="padding:6px; border:1px solid #ddd;">${h.date || '-'}</td>
+                        style="padding:6px; border:1px solid #ddd;">${h.acres || '-'}</td>
+                        <td style="padding:6px; border:1px solid #ddd; font-weight:bold; color:#28a745;">${h.tons || '0'} Tons</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            }
+        });
+
+        if (!hasAnyHistory) {
+            bodyDiv.innerHTML = `<div style="text-align:center; color:#888; padding:20px;">ఈ రైతుకు సంబంధించిన హార్వెస్ట్ హిస్టరీ ఏదీ లేదు</div>`;
+        }
+    }
+
+    modal.style.display = "flex";
+}
+
+function closeHistoryPopup() {
+    let modal = document.getElementById("historyPopupModal");
+    if (modal) {
+        modal.style.display = "none";
+    }
+}
+function viewFarmerFullHistory(farmerIndex) {
+    let farmer = farmers[farmerIndex];
+
+    let modal = document.getElementById("historyPopupModal");
+    if (!modal) {
+        modal = document.createElement("div");
+        modal.id = "historyPopupModal";
+        modal.style.cssText = "display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:2000; justify-content:center; align-items:center;";
+        modal.innerHTML = `
+            <div style="background:white; width:90%; max-width:450px; padding:20px; border-radius:8px; box-shadow:0 4px 10px rgba(0,0,0,0.2); position:relative; max-height:80vh; display:flex; flex-direction:column;">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee; padding-bottom:10px;">
+                    <h3 id="historyModalTitle" style="margin:0; font-size:16px; color:#333;">Farmer Harvest History</h3>
+                    <button onclick="closeHistoryPopup()" style="background:none; border:none; font-size:18px; cursor:pointer; color:#888;">✕</button>
+                </div>
+                <div id="historyModalBody" style="overflow-y:auto; margin-top:15px; font-size:13px; flex-grow:1;"></div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+
+    document.getElementById("historyModalTitle").innerText = `${farmer.name} (Owner ID: ${farmer.owner || '-'}) పూర్తి హిస్టరీ`;
+    let bodyDiv = document.getElementById("historyModalBody");
+    bodyDiv.innerHTML = "";
+
+    if (!farmer.lands || farmer.lands.length === 0) {
+        bodyDiv.innerHTML = `<div style="text-align:center; color:#888; padding:20px;">ల్యాండ్స్ వివరాలు ఏవీ లేవు</div>`;
+    } else {
+        let hasAnyHistory = false;
+
+        farmer.lands.forEach(land => {
+            if (land.history && land.history.length > 0) {
+                hasAnyHistory = true;
+                
+                let landHeader = document.createElement("div");
+                landHeader.style.cssText = "font-weight:bold; color:#007bff; margin-top:10px; margin-bottom:5px; border-bottom:1px dashed #ddd; padding-bottom:3px;";
+                landHeader.innerText = `Land ID: ${land.landId} (Area: ${land.area || '-'})`;
+                bodyDiv.appendChild(landHeader);
+
+                let table = document.createElement("table");
+                table.style.cssText = "width:100%; border-collapse:collapse; font-size:12px; margin-bottom:10px;";
+                table.innerHTML = `
+                    <thead>
+                        <tr style="background:#f9f9f9; text-align:left;">
+                            <th style="padding:6px; border:1px solid #ddd;">తేదీ (Date)</th>
+                            <th style="padding:6px; border:1px solid #ddd;">ఎకరాలు</th>
+                            <th style="padding:6px; border:1px solid #ddd;">టన్స్</th>
+                        </tr>
+                    </thead>
+                    <tbody class="land-hist-tbody"></tbody>
+                `;
+                bodyDiv.appendChild(table);
+
+                let tbody = table.querySelector(".land-hist-tbody");
+                land.history.slice().reverse().forEach(h => {
+                    let row = document.createElement("tr");
+                    row.innerHTML = `
+                        <td style="padding:6px; border:1px solid #ddd;">${h.date || '-'}</td>
+                        <td style="padding:6px; border:1px solid #ddd;">${h.acres || '-'}</td>
+                        <td style="padding:6px; border:1px solid #ddd; font-weight:bold; color:#28a745;">${h.tons || '0'} Tons</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            }
+        });
+
+        if (!hasAnyHistory) {
+            bodyDiv.innerHTML = `<div style="text-align:center; color:#888; padding:20px;">ఈ రైతుకు సంబంధించిన హార్వెస్ట్ హిస్టరీ ఏదీ లేదు</div>`;
+        }
+    }
+
+    modal.style.display = "flex";
+}
+function editFarmer(farmerIndex) {
+    let farmer = farmers[farmerIndex];
+
+    let modal = document.getElementById("editFarmerModal");
+    if (!modal) {
+        modal = document.createElement("div");
+        modal.id = "editFarmerModal";
+        modal.className = "modal-overlay";
+        modal.innerHTML = `
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>రైతు వివరాలు సవరించు (Edit Farmer)</h3>
+                    <button class="modal-close" onclick="closeEditFarmerModal()">✕</button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="editFarmerIdx">
+                    <label style="font-size:12px; font-weight:bold; color:#555;">రైతు పేరు (Farmer Name)</label>
+                    <input type="text" id="editFarmerName" placeholder="రైతు పేరు">
+                    
+                    <label style="font-size:12px; font-weight:bold; color:#555;">Owner ID</label>
+                    <input type="text" id="editFarmerOwner" placeholder="Owner ID">
+                    
+                    <label style="font-size:12px; font-weight:bold; color:#555;">SAP ID</label>
+                    <input type="text" id="editFarmerSap" placeholder="SAP ID">
+                    
+                    <label style="font-size:12px; font-weight:bold; color:#555;">Supplier Name</label>
+                    <input type="text" id="editFarmerSupplier" placeholder="Supplier Name">
+                    
+                    <button onclick="saveFarmerEdits()" style="margin-top:10px;">మార్పులు సేవ్ చేయండి</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+
+    // పాత వివరాలను ఇన్‌పుట్ బాక్స్‌లలో నింపడం
+    document.getElementById("editFarmerIdx").value = farmerIndex;
+    document.getElementById("editFarmerName").value = farmer.name || "";
+    document.getElementById("editFarmerOwner").value = farmer.owner || "";
+    document.getElementById("editFarmerSap").value = farmer.sap || "";
+    document.getElementById("editFarmerSupplier").value = farmer.supplier || "";
+
+    modal.style.display = "flex";
+}
+
+function closeEditFarmerModal() {
+    let modal = document.getElementById("editFarmerModal");
+    if (modal) modal.style.display = "none";
+}
+
+function saveFarmerEdits() {
+    let idx = document.getElementById("editFarmerIdx").value;
+    let name = document.getElementById("editFarmerName").value.trim();
+    let owner = document.getElementById("editFarmerOwner").value.trim();
+    let sap = document.getElementById("editFarmerSap").value.trim();
+    let supplier = document.getElementById("editFarmerSupplier").value.trim();
+
+    if (!name) {
+        alert("దయచేసి రైతు పేరు నమోదు చేయండి!");
+        return;
+    }
+
+    // డేటాను అప్డేట్ చేయడం
+    farmers[idx].name = name;
+    farmers[idx].owner = owner;
+    farmers[idx].sap = sap;
+    farmers[idx].supplier = supplier;
+
+    closeEditFarmerModal();
+    renderFarmerCards(); // లిస్ట్ ని రిఫ్రెష్ చేయడానికి
+    if (typeof saveDataToLocalStorage === "function") saveDataToLocalStorage();
 }
