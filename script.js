@@ -1006,3 +1006,50 @@ function saveFarmerEdits() {
     renderFarmerCards(); // లిస్ట్ ని రిఫ్రెష్ చేయడానికి
     if (typeof saveDataToLocalStorage === "function") saveDataToLocalStorage();
 }
+// మొత్తం డేటాని JSON ఫైల్‌గా డౌన్‌లోడ్ చేయడం (Backup Export)
+function exportDataToExcel() {
+    if (!farmers || farmers.length === 0) {
+        alert("డౌన్‌లోడ్ చేయడానికి ఎలాంటి డేటా లేదు!");
+        return;
+    }
+
+    let dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(farmers, null, 2));
+    let downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href", dataStr);
+    
+    // ప్రస్తుత తేదీతో ఫైల్ పేరు తయారవుతుంది
+    let dateStr = new Date().toISOString().slice(0,10);
+    downloadAnchor.setAttribute("download", `OilPalm_Backup_${dateStr}.json`);
+    
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+}
+
+// పాత బ్యాకప్ ఫైల్‌ని అప్‌లోడ్ చేసి డేటా రిస్టోర్ చేయడం (Backup Import)
+function importDataFromJSON(event) {
+    let file = event.target.files[0];
+    if (!file) return;
+
+    let reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            let importedData = JSON.parse(e.target.result);
+            if (Array.isArray(importedData)) {
+                if (confirm("ఇప్పటివరకు ఉన్న డేటా స్థానంలో ఈ బ్యాకప్ డేటా లోడ్ చేయబడుతుంది. మీకు సమ్మతమేనా?")) {
+                    farmers = importedData;
+                    if (typeof saveDataToLocalStorage === "function") saveDataToLocalStorage();
+                    if (typeof renderFarmerCards === "function") renderFarmerCards();
+                    if (typeof updateDashboard === "function") updateDashboard();
+                    alert("డేటా విజయవంతంగా రిస్టోర్ చేయబడింది!");
+                }
+            } else {
+                alert("ఫైల్ ఫార్మాట్ సరిగ్గా లేదు!");
+            }
+        } catch (error) {
+            alert("ఫైల్ చదవడం లో లోపం ఏర్పడింది. దయచేసి సరైన బ్యాకప్ ఫైల్ ఎంచుకోండి.");
+        }
+    };
+    reader.readAsText(file);
+    event.target.value = ""; // రీసెట్ చేయడానికి
+}
