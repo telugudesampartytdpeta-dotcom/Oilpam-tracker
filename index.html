@@ -81,24 +81,23 @@
             <button id="saveHarvest">Save Harvest</button>
         </div>
 
-        <!-- 10 రోజుల హార్వెస్ట్ హిస్టరీ టేబుల్ -->
-        <div class="formBox">
-            <h2>గత 10 రోజుల్లో హార్వెస్ట్ చేయవలసిన / చేసిన ల్యాండ్స్</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Farmer Name</th>
-                        <th>SAP ID</th>
-                        <th>Land ID</th>
-                        <th>Last Harvest Date</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody id="harvestedTableBody">
-                    <tr><td colspan="5" style="text-align:center; color:#888;">డేటా ఏదీ లేదు</td></tr>
-                </tbody>
-            </table>
-        </div>
+<!-- 10 Days Harvest Alert Icon -->
+<div style="position: relative; display: inline-block; cursor: pointer;" onclick="toggleHarvestPopup()">
+    <span style="font-size: 24px;" title="10 Days Harvest Alerts">🔔</span>
+    <span id="harvestBadgeCount" style="position: absolute; top: -5px; right: -10px; background: red; color: white; border-radius: 50%; padding: 2px 6px; font-size: 11px; font-weight: bold;">0</span>
+</div>
+
+<!-- Popup Box (Initially Hidden) -->
+<div id="harvestPopupModal" style="display: none; position: absolute; right: 0; top: 35px; width: 320px; background: white; border: 1px solid #ccc; box-shadow: 0 4px 8px rgba(0,0,0,0.15); border-radius: 8px; z-index: 1000; padding: 10px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 5px;">
+        <strong style="font-size: 14px; color: #333;">10 Days Harvest Status</strong>
+        <button onclick="toggleHarvestPopup()" style="background: none; border: none; font-size: 16px; cursor: pointer; color: #888;">✕</button>
+    </div>
+    <div id="harvestPopupContent" style="max-height: 250px; overflow-y: auto; margin-top: 8px; font-size: 13px;">
+        <!-- Dynamic list items will come here -->
+    </div>
+</div>
+
 
         <!-- డేట్ రేంజ్ ఫిల్టర్ & CSV డౌన్‌లోడ్ సెక్షన్ -->
         <div class="topBar">

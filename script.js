@@ -526,3 +526,71 @@ function selectFarmerForHarvest(fIdx, lIdx) {
         harvestFarmer.scrollIntoView({ behavior: 'smooth' });
     }
 }
+// పాప్‌అప్ టోగుల్ చేయడానికి
+function toggleHarvestPopup() {
+    const modal = document.getElementById("harvestPopupModal");
+    if (modal) {
+        modal.style.display = modal.style.display === "block" ? "none" : "block";
+    }
+}
+
+// బ్రౌజర్ ఎక్కడైనా క్లిక్ చేస్తే పాప్‌అప్ క్లోజ్ అయ్యేలా (Optional)
+window.addEventListener("click", function(e) {
+    const modal = document.getElementById("harvestPopupModal");
+    const icon = document.querySelector("div[onclick='toggleHarvestPopup()']");
+    if (modal && icon && !modal.contains(e.target) && !icon.contains(e.target)) {
+        modal.style.display = "none";
+    }
+});
+
+// 10 Days Harvest Icon & Popup Update Function
+function renderHarvestedTable() {
+    const popupContent = document.getElementById("harvestPopupContent");
+    const badgeCount = document.getElementById("harvestBadgeCount");
+    
+    if (!popupContent || !badgeCount) return;
+
+    popupContent.innerHTML = "";
+    let harvestedCount = 0;
+    const today = new Date();
+
+    farmers.forEach(farmer => {
+        if (farmer.lands && farmer.lands.length > 0) {
+            farmer.lands.forEach(land => {
+                if (land.history && land.history.length > 0) {
+                    let lastHarvest = land.history.slice().reverse().find(h => h.date);
+                    
+                    if (lastHarvest && lastHarvest.date) {
+                        let harvestDate = new Date(lastHarvest.date);
+                        let diffTime = today - harvestDate;
+                        let diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+                        if (diffDays >= 0 && diffDays <= 10) {
+                            harvestedCount++;
+                            let remainingDays = 10 - diffDays;
+
+                            let item = document.createElement("div");
+                            item.style.cssText = "padding: 8px; border-bottom: 1px solid #f1f1f1; display: flex; justify-content: space-between; align-items: center;";
+                            item.innerHTML = `
+                                <div>
+                                    <strong>${farmer.name}</strong><br>
+                                    <small style="color: #666;">Owner ID: ${farmer.owner || '-'} | Land: ${land.landId}</small><br>
+                                    <small style="color: #007bff;">Last Date: ${lastHarvest.date}</small>
+                                </div>
+                                <span style="background:#fff3cd; color:#856404; padding:2px 5px; border-radius:4px; font-size:11px;">${remainingDays} రోజులు</span>
+                            `;
+                            popupContent.appendChild(item);
+                        }
+                    }
+                }
+            });
+        }
+    });
+
+    // బాడ్జ్ కౌంట్ అప్‌డేట్ చేయడం
+    badgeCount.innerText = harvestedCount;
+
+    if (harvestedCount === 0) {
+        popupContent.innerHTML = `<div style="text-align:center; color:#888; padding:15px;">గత 10 రోజుల్లో హార్వెస్ట్ చేసినవి ఏవీ లేవు</div>`;
+    }
+}
