@@ -1,479 +1,129 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="te">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>Oil Palm Harvester Tracker V2</title>
-
-<link rel="stylesheet" href="style.css">
-
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Oil Palm Harvester Tracker</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- SheetJS (Excel ఫైల్స్ రీడ్ చేయడానికి) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 
-<header>
+    <header>
+        <h1>Oil Palm Harvester Tracker</h1>
+        <p>రైతులు మరియు హార్వెస్ట్ వివరాల నిర్వహణ యాప్</p>
+    </header>
 
-<h1>🌴 Oil Palm Harvester Tracker</h1>
+    <div class="container">
+        
+        <!-- డాష్‌బోర్డ్ కార్డ్స్ -->
+        <div class="dashboard">
+            <div class="card">
+                <h2 id="farmerCount">0</h2>
+                <p>Active Farmers</p>
+            </div>
+            <div class="card">
+                <h2 id="landCount">0</h2>
+                <p>Active Lands</p>
+            </div>
+            <div class="card">
+                <h2 id="harvestCount">0</h2>
+                <p>Active Tasks</p>
+            </div>
+            <div class="card">
+                <h2 id="totalTons">0</h2>
+                <p>Total Tons</p>
+            </div>
+        </div>
 
-<p>Farmer • Multiple Land IDs • Harvest History</p>
+        <!-- ఎక్సెల్ ఫైల్ అప్‌లోడ్ సెక్షన్ -->
+        <div class="formBox">
+            <h2>Excel / CSV File Upload</h2>
+            <input type="file" id="excelFileInput" accept=".xlsx, .xls, .csv">
+            <button id="importBtn" style="margin-top:10px;">Upload & Import Data</button>
+        </div>
 
-</header>
-<!-- 1. Header Navigation Tabs -->
-<div class="top-nav">
-  <button class="nav-tab active" onclick="switchTab(event, 'all')">Overview</button>
-  <button class="nav-tab" onclick="switchTab(event, 'farmers')">Farmers</button>
-  <button class="nav-tab" onclick="switchTab(event, 'harvest')">Harvest</button>
-</div>
+        <!-- ఫారమ్‌లు పక్కపక్కనే (Side by Side) రావడానికి -->
+        <div class="form-row">
+            <div class="formBox">
+                <h2>Add Farmer</h2>
+                <select id="farmerNameSelect"></select>
+                <input type="text" id="sapId" placeholder="SAP ID">
+                <input type="text" id="ownerId" placeholder="Owner ID">
+                <input type="text" id="supplier" placeholder="Supplier Name">
+                <button id="saveFarmer">Save Farmer</button>
+            </div>
 
-<!-- 2. Filter Chips Buttons -->
-<div class="filter-chips">
-  <span class="chip active" onclick="filterData(event, 'all')">All</span>
-  <span class="chip" onclick="filterData(event, 'harvested')">Harvest Done</span>
-  <span class="chip" onclick="filterData(event, 'pending')">Pending</span>
-</div>
+            <div class="formBox">
+                <h2>Add Land ID / Details</h2>
+                <select id="farmerSelect">
+                    <option value="">Select Farmer</option>
+                </select>
+                <input type="text" id="landId" placeholder="Land ID">
+                <input type="number" id="landArea" placeholder="Area in Acres">
+                <button id="saveLand">Save Land</button>
+            </div>
+        </div>
 
-<div class="container">
+        <!-- హార్వెస్ట్ ఎంట్రీ ఫారమ్ -->
+        <div class="formBox">
+            <h2>Add Harvest Entry</h2>
+            <select id="harvestFarmer">
+                <option value="">Select Farmer</option>
+            </select>
+            <select id="harvestLand">
+                <option value="">Select Land</option>
+            </select>
+            <input type="date" id="harvestDate">
+            <input type="number" id="harvestAcres" placeholder="Harvested Acres">
+            <input type="number" id="harvestTons" placeholder="Harvested Tons">
+            <button id="saveHarvest">Save Harvest</button>
+        </div>
 
-<div class="topBar" style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 20px;">
-    <!-- Search Input -->
-    <input type="text" id="search" placeholder="Search Farmer / SAP / Land ID">
+        <!-- 10 రోజుల హార్వెస్ట్ హిస్టరీ టేబుల్ -->
+        <div class="formBox">
+            <h2>గత 10 రోజుల్లో హార్వెస్ట్ చేయవలసిన / చేసిన ల్యాండ్స్</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Farmer Name</th>
+                        <th>SAP ID</th>
+                        <th>Land ID</th>
+                        <th>Last Harvest Date</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="harvestedTableBody">
+                    <tr><td colspan="5" style="text-align:center; color:#888;">డేటా ఏదీ లేదు</td></tr>
+                </tbody>
+            </table>
+        </div>
 
-    <!-- Date Selection Inputs -->
-    <div style="display: flex; gap: 5px; align-items: center;">
-        <label for="startDate"><strong>From:</strong></label>
-        <input type="date" id="startDate">
+        <!-- డేట్ రేంజ్ ఫిల్టర్ & CSV డౌన్‌లోడ్ సెక్షన్ -->
+        <div class="topBar">
+            <div style="flex: 1; min-width: 140px;">
+                <label>Start Date:</label>
+                <input type="date" id="startDate">
+            </div>
+            <div style="flex: 1; min-width: 140px;">
+                <label>End Date:</label>
+                <input type="date" id="endDate">
+            </div>
+            <div style="flex: 1; min-width: 140px; display: flex; align-items: flex-end;">
+                <button id="downloadCSV">Download CSV</button>
+            </div>
+        </div>
 
-        <label for="endDate"><strong>To:</strong></label>
-        <input type="date" id="endDate">
+        <!-- సెర్చ్ బార్ & రైతు జాబితా -->
+        <div class="formBox">
+            <h2>Farmers List</h2>
+            <input type="text" id="search" placeholder="రైతు పేరు లేదా SAP ID తో వెతకండి...">
+            <div id="farmerList" style="margin-top: 15px;"></div>
+        </div>
+
     </div>
 
-<!-- Download CSV Button -->
-<button onclick="downloadHarvestCSV()" id="downloadCSV" style="background-color: #2e7d32; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer;">
-    📥 Download Harvest CSV
-</button>
-
-</div>
-
-<div class="dashboard">
-
-<div class="card">
-
-<h2 id="farmerCount">0</h2>
-
-<p>Farmers</p>
-
-</div>
-
-<div class="card">
-
-<h2 id="landCount">0</h2>
-
-<p>Land IDs</p>
-
-</div>
-
-<div class="card">
-
-<h2 id="harvestCount">0</h2>
-
-<p>Harvests</p>
-
-</div>
-
-<div class="card">
-
-<h2 id="totalTons">0</h2>
-
-<p>Total Tons</p>
-
-</div>
-
-</div>
-
-<!-- ⬇️ Add Farmer Form Box ⬇️ -->
-<div class="formBox">
-
-<h2>Add Farmer</h2>
-
-<!-- Farmer Select Dropdown Box -->
-<select id="farmerNameSelect">
-  <option value="">-- Select Farmer --</option>
-  <option value="00160">00160 - Govardhanagiri Subbarao</option>
-  <option value="00201">00201 - Palakurthi Satyanarayana</option>
-  <option value="03236">03236 - Bogavalli Laxmi</option>
-  <option value="01251">01251 - Parepalli Parvathi</option>
-  <option value="00283">00283 - Pendyala Rajendra Prasad</option>
-  <option value="00304">00304 - Pinnamaneni Sujatha</option>
-  <option value="00984">00984 - Vandanapu Padmavathi</option>
-  <option value="05975">05975 - Pendyala Vara Laxmi</option>
-  <option value="03244">03244 - Bolla Chinnayya</option>
-  <option value="05455">05455 - Verekuti Ganga Jalam</option>
-  <option value="08433">08433 - Korlepara Prema Venkata Sita Raja Rani</option>
-  <option value="08434">08434 - Konigalla K.N.V.L.Annapurna Kumari</option>
-  <option value="00922">00922 - Gummalla Satynarayana</option>
-  <option value="01123">01123 - Pendyala Ravikumar</option>
-  <option value="01214">01214 - Kanniboina Surya Rao</option>
-  <option value="01215">01215 - Mankinapalli Annapurna</option>
-  <option value="01354">01354 - Pendyala Satyanarayana</option>
-  <option value="02063">02063 - Yellina Hari Babu</option>
-  <option value="05189">05189 - Manchanapalli Annapurna</option>
-  <option value="05970">05970 - Pendyala Devi Sivani</option>
-  <option value="05971">05971 - Pendyala Dhana Laxmi</option>
-  <option value="09628">09628 - Damera Anusha</option>
-  <option value="10689">10689 - Adapa Satyanarayana</option>
-  <option value="00309">00309 - Parepalli Venkataramaiah</option>
-  <option value="00985">00985 - Kambampati Anasuya</option>
-  <option value="01252">01252 - Palakurthi Suryanarayana</option>
-  <option value="01380">01380 - Balina Satyanarayana</option>
-  <option value="01633">01633 - Balina Ananthalakshmi</option>
-  <option value="01722">01722 - Mandavalli Ram Babu</option>
-  <option value="02055">02055 - Parepalli S.N.V.Satyanarayana</option>
-  <option value="04463">04463 - Kanneboina Mavulamma</option>
-  <option value="13978">13978 - Kasani Sumathi</option>
-  <option value="01866">01866 - Medikonda Surya Kumari</option>
-  <option value="01980">01980 - Palakurthi Rama Krishna</option>
-  <option value="02005">02005 - Parepalli Rama Rao</option>
-  <option value="02218">02218 - Vemulapalli Savitri</option>
-  <option value="02224">02224 - Valluripalli Sri Vani</option>
-  <option value="04768">04768 - Kondapalli Mukka Ramayya</option>
-  <option value="04821">04821 - Yelina Lalitha Siromani</option>
-  <option value="05492">05492 - Vemulapalli Srinivas Rao</option>
-  <option value="05502">05502 - Konakalla Krishna Rao</option>
-  <option value="05835">05835 - Veeranki Ganga Ratnam</option>
-  <option value="06853">06853 - Valluripalli Srinivas</option>
-  <option value="06885">06885 - Vandanapu Satyanarayana</option>
-  <option value="16501">16501 - Bonthu Aruna</option>
-  <option value="02142">02142 - Malakalapalli Lakshmi Tulasi</option>
-  <option value="02170">02170 - Dara Narayana Rao</option>
-  <option value="02349">02349 - Akula Veera Raghavulu</option>
-  <option value="03644">03644 - Dara Dhananjeya Rao</option>
-  <option value="03645">03645 - Dara Jogaiah</option>
-  <option value="03646">03646 - Dara Krishna Murthy</option>
-  <option value="06366">06366 - Sarvepalli Peda Venkanna</option>
-  <option value="11390">11390 - Duggirala Aruna</option>
-  <option value="12447">12447 - Dara Rama Lingeswara Gupta</option>
-  <option value="14476">14476 - Seelam Veeralakshmi</option>
-  <option value="00548">00548 - Morvaneni Josha Srinivasa Rao</option>
-  <option value="02407">02407 - Parepalli Rambabu</option>
-  <option value="02984">02984 - Armugam Dhanalakshmi</option>
-  <option value="03752">03752 - Domathota Gangaraju</option>
-  <option value="03972">03972 - Ganta Venkateswarao</option>
-  <option value="04464">04464 - Kanneboina Satyanarayana</option>
-  <option value="05353">05353 - Moravaneni Jyothi Srinivasarao</option>
-  <option value="05789">05789 - Papacharyula Lingachary</option>
-  <option value="05815">05815 - Parepalli Narasimharao</option>
-  <option value="06630">06630 - Thumpati Ravindra</option>
-  <option value="06640">06640 - Thoompati Padma</option>
-  <option value="06671">06671 - Thota Subhas Chandrabose</option>
-  <option value="06673">06673 - Thota Swarna Kumari</option>
-  <option value="06704">06704 - Thumpati Venkata Lakshmi</option>
-  <option value="12121">12121 - Moravaneni Yaswanth Naga Sai Prudhvi</option>
-  <option value="02348">02348 - Vemulapalli Prabhakara Rao</option>
-  <option value="05386">05386 - Mukku Sarva Venkata Lakshmi Narasimha Rao</option>
-  <option value="05498">05498 - Vemulapalli Ravindra</option>
-  <option value="05856">05856 - Parsa Lakshmi</option>
-  <option value="05857">05857 - Parsa Seetha Ramayya</option>
-  <option value="05946">05946 - Pathuri Venkata Lakshmi</option>
-  <option value="10671">10671 - Bagu Naga Jyothi</option>
-  <option value="13091">13091 - Pathuri Surya Chandrao</option>
-  <option value="13355">13355 - Mukku Bhaskara Varaprasad</option>
-  <option value="03013">03013 - Bagu Pothuraju</option>
-  <option value="04773">04773 - Yellina Nagarjuna</option>
-  <option value="05056">05056 - Madasu Muniyya</option>
-  <option value="05057">05057 - Madasu Nageswara Rao</option>
-  <option value="05265">05265 - Mathukumalli Bhulakshmi</option>
-  <option value="05560">05560 - Nalluri Swathi</option>
-  <option value="05628">05628 - Nekkanti Gandhi</option>
-  <option value="05746">05746 - Palakurthi Durga Prasanna</option>
-  <option value="05756">05756 - Palakurthi Subbarao</option>
-  <option value="05819">05819 - Veeranki Naga Ratnam</option>
-  <option value="06229">06229 - Rajanala Ramachandra Rao</option>
-  <option value="06844">06844 - Vallabhani Kasi Annapurna</option>
-  <option value="17127">17127 - Methukumelli Srinivasarao</option>
-  <option value="02585">02585 - Dara China Narayana Rao</option>
-  <option value="03648">03648 - Dara Pulla Rao</option>
-  <option value="04750">04750 - Konigolla Rama Subrahmanyam</option>
-  <option value="05000">05000 - Lakamsani Vallamamba</option>
-  <option value="05001">05001 - Lakamsani Veeranjaneyulu</option>
-  <option value="05823">05823 - Parepalli Veeranna</option>
-  <option value="05969">05969 - Pendyala Atchutamba</option>
-  <option value="05972">05972 - Pendyala Satyanarayana</option>
-  <option value="06678">06678 - Varikuti Punnaiah</option>
-  <option value="07103">07103 - Poppu Venkateswara Rao</option>
-  <option value="07104">07104 - Konakalla Ramachandrarao</option>
-  <option value="07106">07106 - Konakalla Krishnamurthy</option>
-  <option value="07113">07113 - Sheik Saheb Hussan</option>
-  <option value="07134">07134 - Kalneedi Amarnath</option>
-  <option value="07155">07155 - Varikuti Muthyalu</option>
-  <option value="07198">07198 - Muthinti Varalakshmi</option>
-  <option value="07207">07207 - Pakalapati Suresh</option>
-  <option value="07209">07209 - Palakurthi Ramakrishna Varaprasad</option>
-  <option value="11699">11699 - Varikuti Venkata Ramarao</option>
-  <option value="14496">14496 - Samayamanthula Chakradhara Rao</option>
-  <option value="16497">16497 - Parepalli Srinivasarao</option>
-  <option value="17129">17129 - Shaik Himam Sharif</option>
-  <option value="01099">01099 - Chinni Kondayya</option>
-  <option value="07352">07352 - Yellina Satyanarayana</option>
-  <option value="07354">07354 - Mandavalli Rambabu</option>
-  <option value="07355">07355 - Reddi Savitri</option>
-  <option value="07356">07356 - Mandavalli Lakshmi Devi</option>
-  <option value="07366">07366 - Alla Sitha Maha Lakshmi</option>
-  <option value="07373">07373 - Vemulapalli Lakshmi</option>
-  <option value="07378">07378 - Palakurthi Subba Rao</option>
-  <option value="07382">07382 - Kondapalli Chandra Rao</option>
-  <option value="07554">07554 - Varikuti Ramesh</option>
-  <option value="07555">07555 - Varikuti Ramayamma</option>
-  <option value="07650">07650 - Pendurti Venkatarao</option>
-  <option value="07723">07723 - Veeranki Naga Ratnam</option>
-  <option value="07796">07796 - Moravaneni Sai Teja</option>
-  <option value="07801">07801 - Akshintala Srinivasa Rao</option>
-  <option value="07802">07802 - Vatram Venkateswa Rao</option>
-  <option value="07873">07873 - Yellina Jayakrishna</option>
-  <option value="07874">07874 - Yellina Annapurna</option>
-  <option value="07879">07879 - Valluripalli Sri Vani</option>
-  <option value="07940">07940 - Parepalli Satyanarayana</option>
-  <option value="08044">08044 - Govardhanagiri Suneetha Devi</option>
-  <option value="08045">08045 - Govardhanagiri Vasudevarao</option>
-  <option value="08170">08170 - Papacharyulu Veeresalingam</option>
-  <option value="08221">08221 - Vandanapu China Rukkaiah</option>
-  <option value="12450">12450 - Madhyahnapu Durga Bhavani</option>
-  <option value="14477">14477 - Seelam Venkata Raju</option>
-  <option value="18211">18211 - Kamma Sriswapna</option>
-  <option value="19143">19143 - Talari Manga</option>
-  <option value="00159">00159 - Gandaboina Radha Krishna</option>
-  <option value="04465">04465 - Kanneboina Suryarao</option>
-  <option value="08282">08282 - Peruboina Kowsalya</option>
-  <option value="08679">08679 - Manchimi Ramaprbha Surya Kantham</option>
-  <option value="08680">08680 - Nelluri Venkata Ramarao</option>
-  <option value="09176">09176 - Nelluri Ramakrishna</option>
-  <option value="09177">09177 - Madasu Krishna Kumari</option>
-  <option value="03787">03787 - Mandavalli Koteswara Rao</option>
-  <option value="09508">09508 - Batchu Yugandar</option>
-  <option value="11692">11692 - Palakurthi Durga Prasanna</option>
-  <option value="11701">11701 - Papacharyula Veeresalingam</option>
-  <option value="11924">11924 - Lakamsani Rama Rao</option>
-  <option value="11955">11955 - Palakurthi Gandhi Suryanarayana</option>
-  <option value="12047">12047 - Pendurthi Amala</option>
-  <option value="12127">12127 - Thota Venkayamma</option>
-  <option value="12128">12128 - Thota Venkateswara Rao</option>
-  <option value="12129">12129 - Thota Gangaraju</option>
-  <option value="14979">14979 - Mogalla Venkata Lakshmi</option>
-  <option value="14989">14989 - Yellina Ganga Bhavani</option>
-  <option value="16340">16340 - Chelikani Satyanarayana</option>
-  <option value="16559">16559 - Bachu Baburao</option>
-  <option value="13009">13009 - Nelluri Basava Raju</option>
-  <option value="13691">13691 - Varikuti Srinivasarao</option>
-  <option value="18496">18496 - Konkimalla Eswari</option>
-  <option value="18497">18497 - Kaki Harinadharao</option>
-  <option value="18498">18498 - Kaki Nagamani</option>
-  <option value="06836">06836 - Vadulla Suryavathi</option>
-  <option value="15513">15513 - Yellina Bhargavi</option>
-  <option value="15514">15514 - Lakamsani Dhanalakshmi</option>
-  <option value="15517">15517 - Undavalli Ramarao</option>
-  <option value="15518">15518 - Undavalli Rangamma</option>
-  <option value="15524">15524 - Edupuganti Saritha</option>
-  <option value="15934">15934 - Eluru Jaya Kumari</option>
-  <option value="04133">04133 - Gummala Somaraju</option>
-  <option value="07897">07897 - Dorepalli Rama Krishna</option>
-  <option value="12418">12418 - Parasa Basava Raju</option>
-  <option value="15937">15937 - Thota Satyanarayana</option>
-  <option value="16700">16700 - Uppala Gangadhar Rao</option>
-  <option value="16760">16760 - Kakkirala Chandu</option>
-  <option value="16880">16880 - Bolla Sitharamulu</option>
-  <option value="16885">16885 - Pandyala Keerthi</option>
-  <option value="16886">16886 - Pendyala Mounika Chowdary</option>
-  <option value="16973">16973 - Pendyala Bhargavi Kumari</option>
-  <option value="16974">16974 - Palakurthy Geeta</option>
-  <option value="16979">16979 - Mogili Rajendra Prasad</option>
-  <option value="17172">17172 - Uppala Venkateswararao</option>
-  <option value="17249">17249 - Yandra Padmavathi</option>
-  <option value="17250">17250 - Yandra Madhu</option>
-  <option value="17251">17251 - Uppala Jaya Venkateswararao</option>
-  <option value="17349">17349 - Veeranki Ramayya</option>
-  <option value="17818">17818 - Gummalla Srinivasarao</option>
-  <option value="00348">00348 - Mamilla Srinubabu</option>
-  <option value="00986">00986 - Mamilla Satyanarayana</option>
-  <option value="03665">03665 - Dasari Kalavathi</option>
-  <option value="03774">03774 - Dorepalli Venkata Subba Lakshmi Joythi</option>
-  <option value="05639">05639 - Nelluri Venkatarao</option>
-  <option value="11956">11956 - Chapala China Venkateswara Rao</option>
-  <option value="16978">16978 - Ganta Rama Thulasi</option>
-  <option value="18473">18473 - Akula Mangayamma</option>
-  <option value="18474">18474 - Kondaparthi Ramachari</option>
-  <option value="18647">18647 - Kondapalli Vijayalakshmi</option>
-  <option value="18648">18648 - Kare Pauline</option>
-  <option value="18658">18658 - Mavilla Gangaraju</option>
-  <option value="18666">18666 - Koruprolu Nageshwara Rao</option>
-  <option value="18667">18667 - Koruprolu Tayaru Bramaramba Devi</option>
-  <option value="18668">18668 - Charugulla Pushpavathi</option>
-  <option value="18889">18889 - Kathari Prameela</option>
-  <option value="18967">18967 - Chinni Nageswara Mani Gupta</option>
-  <option value="18968">18968 - Parepalli Gangabhavani</option>
-  <option value="18969">18969 - Chinni Rambabu</option>
-  <option value="18970">18970 - Konakalla Suryanarayana</option>
-  <option value="19230">19230 - Tananki Gotiyya</option>
-  <option value="19231">19231 - Chilaka Durgamma</option>
-  <option value="19398">19398 - Vakkalagadda Gowri Vardhini</option>
-  <option value="19399">19399 - Vakkalagadda Srinivasarao</option>
-  <option value="19455">19455 - Pappu Ramesh Naidu</option>
-  <option value="19523">19523 - Eedala Kowsalya</option>
-  <option value="19576">19576 - Parvataneni Ramatulasi</option>
-  <option value="19599">19599 - Uppala Srinivasarao</option>
-  <option value="19693">19693 - Valavala Swarupa Rani</option>
-  <option value="19897">19897 - Veeravalli Mohan Lakshmi</option>
-  <option value="20027">20027 - Dakarapu Satyanarayana</option>
-  <option value="20047">20047 - Thota Sunil</option>
-  <option value="20048">20048 - Parepalli Sridevi</option>
-  <option value="20138">20138 - Rayala Ramana</option>
-  <option value="20291">20291 - Chintapalli Venkatesh</option>
-  <option value="20292">20292 - Chintapalli Durgamma</option>
-  <option value="20293">20293 - Kampasati Padma</option>
-  <option value="20305">20305 - Eluri Raju</option>
-  <option value="20347">20347 - Varikuti Venkatarama Rao</option>
-  <option value="20348">20348 - Varikuti Chandravathi</option>
-  <option value="20577">20577 - Areti Krishnaveni</option>
-  <option value="20620">20620 - Jonnala Satyavathi</option>
-  <option value="20925">20925 - Areti Kanthamma</option>
-</select>
-
-<input
-type="text"
-id="ownerId"
-placeholder="Owner ID">
-
-<input
-type="text"
-id="sapId"
-placeholder="SAP ID">
-
-<input
-type="text"
-id="supplier"
-placeholder="Supplier Name">
-
-<button id="saveFarmer">
-
-Save Farmer
-
-</button>
-
-</div>
-
-
-<div class="formBox">
-
-<h2>Add Land</h2>
-
-<select id="farmerSelect">
-
-<option value="">
-Select Farmer
-</option>
-
-</select>
-
-<input
-type="text"
-id="landId"
-placeholder="Land ID">
-
-<input
-type="number"
-id="landArea"
-placeholder="Area (Acres)">
-
-<button id="saveLand">
-
-Add Land
-
-</button>
-
-</div>
-
-
-<div class="formBox">
-
-<h2>Add Harvest</h2>
-
-<select id="harvestFarmer">
-
-<option value="">
-Select Farmer
-</option>
-
-</select>
-
-<select id="harvestLand">
-
-<option value="">
-Select Land
-</option>
-
-</select>
-
-<input
-type="date"
-id="harvestDate">
-
-<input
-type="number"
-id="harvestAcres"
-placeholder="Harvest Acres">
-
-<input
-type="number"
-id="harvestTons"
-placeholder="Harvest Tons">
-
-<button id="saveHarvest">
-
-Save Harvest
-<table class="harvest-table">
-    <thead>
-        <tr>
-            <th>రైతు పేరు</th>
-            <th>SAP ID</th>
-            <th>ల్యాండ్ ID</th>
-            <th>హార్వెస్ట్ తేది</th>
-            <th>గడువు స్థితి</th>
-        </tr>
-    </thead>
-    <tbody id="harvestedTableBody">
-        <!-- డేటా ఇక్కడ వస్తుంది -->
-    </tbody>
-</table>
-
-
-</button>
-
-
-</div>
-
-<hr>
-
-<h2>Farmers List</h2>
-
-<div id="farmerList">
-  
-  
-
-</div>
-
-</div>
-<!-- Excel ఫైల్స్ ని రీడ్ చేయడానికి SheetJS Library -->
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-
-<!-- Import UI Box -->
-<div class="import-container" style="margin: 20px 0; padding: 15px; border: 2px dashed #4CAF50; border-radius: 8px; text-align: center;">
-    <h3>📥 Import Farmers & Lands Data (Excel / CSV)</h3>
-    <input type="file" id="excelFileInput" accept=".xlsx, .xls, .csv" style="margin: 10px 0;">
-    <button type="button" id="importBtn" style="padding: 8px 16px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">
-         Data
-    </button>
-</div>
-
-
-<script src="script.js"></script>
-
+    <script src="script.js"></script>
 </body>
 </html>
