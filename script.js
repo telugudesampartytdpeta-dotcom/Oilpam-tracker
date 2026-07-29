@@ -1053,3 +1053,122 @@ function importDataFromJSON(event) {
     reader.readAsText(file);
     event.target.value = ""; // రీసెట్ చేయడానికి
 }
+function viewFarmerFullHistory(farmerIndex) {
+    let farmer = farmers[farmerIndex];
+
+    let modal = document.getElementById("historyPopupModal");
+    if (!modal) {
+        modal = document.createElement("div");
+        modal.id = "historyPopupModal";
+        modal.className = "modal-overlay";
+        modal.innerHTML = `
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="historyModalTitle" style="margin:0; font-size:16px;">Farmer Harvest History</h3>
+                    <button class="modal-close" onclick="closeHistoryPopup()">✕</button>
+                </div>
+                <div id="historyModalBody" class="modal-body"></div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+
+    document.getElementById("historyModalTitle").innerText = `${farmer.name} (Owner ID: ${farmer.owner || '-'}) పూర్తి హిస్టరీ`;
+    let bodyDiv = document.getElementById("historyModalBody");
+    bodyDiv.innerHTML = "";
+
+    if (!farmer.lands || farmer.lands.length === 0) {
+        bodyDiv.innerHTML = `<div style="text-align:center; color:#888; padding:20px;">ల్యాండ్స్ వివరాలు ఏవీ లేవు</div>`;
+    } else {
+        let hasAnyHistory = false;
+        let htmlContent = "";
+
+        farmer.lands.forEach((land, lIdx) => {
+            if (land.history && land.history.length > 0) {
+                hasAnyHistory = true;
+                
+                htmlContent += `
+                    <div class="land-header-title">Land ID: ${land.landId} (Area: ${land.area || '-'})</div>
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th>తేదీ</th>
+                                <th>ఎకరాలు</th>
+                                <th>టన్స్</th>
+                                <th style="text-align:center;">చర్యలు</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+                
+                // ఒరిజినల్ ఇండెక్స్‌తో లూప్ చేయడానికి
+                land.history.forEach((h, hIdx) => {
+                    htmlContent += `
+                        <tr>
+                            <td>${h.date || '-'}</td>
+                            <td>${h.acres || '-'}</td>
+                            <td class="history-tons">${h.tons || '0'} Tons</td>
+                            <td style="text-align:center; white-space:nowrap;">
+                                <button onclick="editHarvest(${farmerIndex}, ${lIdx}, ${hIdx})" style="background:#e3f2fd; color:#1976d2; border:none; padding:3px 6px; border-radius:4px; font-size:10px; cursor:pointer; width:auto; margin-right:3px;">Edit</button>
+                                <button onclick="deleteHarvest(${farmerIndex}, ${lIdx}, ${hIdx})" style="background:#ffebee; color:#d32f2f; border:none; padding:3px 6px; border-radius:4px; font-size:10px; cursor:pointer; width:auto;">Delete</button>
+                            </td>
+                        </tr>`;
+                });
+
+                htmlContent += `</tbody></table>`;
+            }
+        });
+
+        if (!hasAnyHistory) {
+            bodyDiv.innerHTML = `<div style="text-align:center; color:#888; padding:20px;">ఈ రైతుకు సంబంధించిన హార్వెస్ట్ హిస్టరీ ఏదీ లేదు</div>`;
+        } else {
+            bodyDiv.innerHTML = htmlContent;
+        }
+    }
+
+    modal.style.display = "flex";
+}
+
+// హార్వెస్ట్ ఎడిట్ చేసే ఫంక్షన్
+function editHarvest(fIdx, lIdx, hIdx) {
+    let historyItem = farmers[fIdx].lands[lIdx].history[hIdx];
+    
+    let newDate = prompt("తేదీ (Date) సవరించండి:", historyItem.date || "");
+    if (newDate === null) return;
+    
+    let newAcres = prompt("ఎకరాలు సవరించండి:", historyItem.acres || "");
+    if (newAcres === null) return;
+    
+    let newTons = prompt("టన్స్ (Tons) సవరించండి:", historyItem.tons || "");
+    if (newTons === null) return;
+
+    // వాల్యూస్ అప్డేట్ చేయడం
+    farmers[fIdx].lands[lIdx].history[hIdx].date = newDate;
+    farmers[fIdx].lands[lIdx].history[hIdx].acres = newAcres;
+    farmers[fIdx].lands[lIdx].history[hIdx].tons = newTons;
+
+    if (typeof saveDataToLocalStorage === "function") saveDataToLocalStorage();
+    if (typeof renderFarmerCards === "function") renderFarmerCards();
+    
+    // పాప్‌అప్‌ని రిఫ్రెష్ చేయడం కోసం మళ్ళీ ఓపెన్ చేయడం
+    viewFarmerFullHistory(fIdx);
+}
+
+// హార్వెస్ట్ డిలీట్ చేసే ఫంక్షన్
+function deleteHarvest(fIdx, lIdx, hIdx) {
+    if (confirm("ఈ హార్వెస్ట్ రికార్డును తొలగించాలనుకుంటున్నారా?")) {
+        farmers[fIdx].lands[lIdx].history.splice(hIdx, 1);
+
+        if (typeof saveDataToLocalStorage === "function") saveDataToLocalStorage();
+        if (typeof renderFarmerCards === "function") renderFarmerCards();
+        
+        // పాప్‌అప్‌ని రిఫ్రెష్ చేయడం కోసం మళ్ళీ ఓపెన్ చేయడం
+        viewFarmerFullHistory(fIdx);
+    }
+}
+
+function closeHistoryPopup() {
+    let modal = document.getElementById("historyPopupModal");
+    if (modal) {
+        modal.style.display = "none";
+    }
+}
