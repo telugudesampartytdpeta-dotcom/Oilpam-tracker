@@ -1100,7 +1100,6 @@ function viewFarmerFullHistory(farmerIndex) {
                         </thead>
                         <tbody>`;
                 
-                // ఒరిజినల్ ఇండెక్స్‌తో లూప్ చేయడానికి
                 land.history.forEach((h, hIdx) => {
                     htmlContent += `
                         <tr>
@@ -1128,7 +1127,7 @@ function viewFarmerFullHistory(farmerIndex) {
     modal.style.display = "flex";
 }
 
-// హార్వెస్ట్ ఎడిట్ చేసే ఫంక్షన్
+// హార్వెస్ట్ ఎడిట్ చేసే పర్ఫెక్ట్ ఫంక్షన్
 function editHarvest(fIdx, lIdx, hIdx) {
     let historyItem = farmers[fIdx].lands[lIdx].history[hIdx];
     
@@ -1141,27 +1140,44 @@ function editHarvest(fIdx, lIdx, hIdx) {
     let newTons = prompt("టన్స్ (Tons) సవరించండి:", historyItem.tons || "");
     if (newTons === null) return;
 
-    // వాల్యూస్ అప్డేట్ చేయడం
     farmers[fIdx].lands[lIdx].history[hIdx].date = newDate;
     farmers[fIdx].lands[lIdx].history[hIdx].acres = newAcres;
-    farmers[fIdx].lands[lIdx].history[hIdx].tons = newTons;
+    farmers[fIdx].lands[lIdx].history[hIdx].tons = parseFloat(newTons) || 0;
 
-    if (typeof saveDataToLocalStorage === "function") saveDataToLocalStorage();
+    // మెయిన్ saveData() కాల్ చేయడం వల్ల లోకల్ స్టోరేజ్, డాష్‌బోర్డ్ అన్నీ ఒకేసారి అప్డేట్ అవుతాయి
+    if (typeof saveData === "function") {
+        saveData();
+    } else {
+        localStorage.setItem("nbl_farmers_data", JSON.stringify(farmers));
+        localStorage.setItem("farmersData", JSON.stringify(farmers));
+    }
+
     if (typeof renderFarmerCards === "function") renderFarmerCards();
-    
-    // పాప్‌అప్‌ని రిఫ్రెష్ చేయడం కోసం మళ్ళీ ఓపెన్ చేయడం
+    if (typeof updateDashboard === "function") updateDashboard();
+    if (typeof renderHarvestedTable === "function") renderHarvestedTable();
+
+    // పాప్‌అప్‌ని రిఫ్రెష్ చేయడం
     viewFarmerFullHistory(fIdx);
 }
 
-// హార్వెస్ట్ డిలీట్ చేసే ఫంక్షన్
+// హార్వెస్ట్ డిలీట్ చేసే పర్ఫెక్ట్ ఫంక్షన్
 function deleteHarvest(fIdx, lIdx, hIdx) {
     if (confirm("ఈ హార్వెస్ట్ రికార్డును తొలగించాలనుకుంటున్నారా?")) {
         farmers[fIdx].lands[lIdx].history.splice(hIdx, 1);
 
-        if (typeof saveDataToLocalStorage === "function") saveDataToLocalStorage();
+        // మెయిన్ saveData() కాల్ చేయడం
+        if (typeof saveData === "function") {
+            saveData();
+        } else {
+            localStorage.setItem("nbl_farmers_data", JSON.stringify(farmers));
+            localStorage.setItem("farmersData", JSON.stringify(farmers));
+        }
+
         if (typeof renderFarmerCards === "function") renderFarmerCards();
-        
-        // పాప్‌అప్‌ని రిఫ్రెష్ చేయడం కోసం మళ్ళీ ఓపెన్ చేయడం
+        if (typeof updateDashboard === "function") updateDashboard();
+        if (typeof renderHarvestedTable === "function") renderHarvestedTable();
+
+        // పాప్‌అప్‌ని రిఫ్రెష్ చేయడం
         viewFarmerFullHistory(fIdx);
     }
 }
