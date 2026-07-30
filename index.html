@@ -81,15 +81,18 @@
             <select id="harvestFarmer">
                 <option value="">Select Farmer</option>
             </select>
-            <select id="harvestLand">
-                <option value="">Select Land</option>
-            </select>
+            
+            <!-- ఇక్కడ select బదులుగా ఈ div ఉండాలి -->
+            <div id="harvestLandContainer" style="border: 1px solid #ccc; padding: 8px; border-radius: 4px; max-height: 140px; overflow-y: auto; background: #fff; margin-bottom: 10px;">
+                <span style="color: #888; font-size: 13px;">ముందుగా రైతును సెలెక్ట్ చేయండి...</span>
+            </div>
+
             <input type="date" id="harvestDate">
             <input type="number" id="harvestAcres" placeholder="Harvested Acres">
             <input type="number" id="harvestTons" placeholder="Harvested Tons">
-            <button id="saveHarvest">Save Harvest
-             </button>
+            <button id="saveHarvest">Save Harvest</button>
         </div>
+
 
 <!-- 10 Days Harvest Alert Icon -->
 <div style="position: relative; display: inline-block; cursor: pointer;" onclick="toggleHarvestPopup()">
@@ -138,4 +141,4 @@
 
     <script src="script.js"></script>
 </body>
-</html>
+</>

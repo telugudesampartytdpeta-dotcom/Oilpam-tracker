@@ -716,3 +716,104 @@ function markHarvestDone(fIdx, lIdx, hIdx) {
         }
     }
 }
+// మొత్తం డేటాని JSON ఫైల్‌గా డౌన్‌లోడ్ చేయడం (Backup Export)
+function exportDataToExcel() {
+    if (!farmers || farmers.length === 0) {
+        alert("డౌన్‌లోడ్ చేయడానికి ఎలాంటి డేటా లేదు!");
+        return;
+    }
+
+    try {
+        let dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(farmers, null, 2));
+        let downloadAnchor = document.createElement('a');
+        downloadAnchor.setAttribute("href", dataStr);
+        
+        let dateStr = new Date().toISOString().slice(0,10);
+        downloadAnchor.setAttribute("download", `OilPalm_Backup_${dateStr}.json`);
+        
+        document.body.appendChild(downloadAnchor);
+        downloadAnchor.click();
+        downloadAnchor.remove();
+    } catch (error) {
+        console.error("Export Error:", error);
+        alert("ఫైల్ డౌన్‌లోడ్ చేయడంలో సమస్య ఏర్పడింది.");
+    }
+}
+// రైతును సెలెక్ట్ చేసినప్పుడు చెక్‌బాక్స్‌లు మరియు "Select All" వచ్చేలా
+const harvestFarmer = document.getElementById("harvestFarmer");
+if (harvestFarmer) {
+    harvestFarmer.addEventListener("change", (e) => {
+        const fIdx = e.target.value;
+        const container = document.getElementById("harvestLandContainer");
+        if (container) {
+            container.innerHTML = "";
+            
+            if (fIdx !== "" && farmers[fIdx] && farmers[fIdx].lands && farmers[fIdx].lands.length > 0) {
+                
+                // "Select All" చెక్‌బాక్స్
+                let selectAllDiv = document.createElement("div");
+                selectAllDiv.style.cssText = "padding: 5px 0; border-bottom: 1px solid #eee; font-weight: bold; font-size: 13px; color: #007bff;";
+                selectAllDiv.innerHTML = `<label style="cursor:pointer;"><input type="checkbox" id="selectAllLands" style="margin-right: 8px;"> అన్ని ల్యాండ్స్ సెలెక్ట్ చేయండి (Select All)</label>`;
+                container.appendChild(selectAllDiv);
+
+                // ప్రతి ల్యాండ్‌కి చెక్‌బాక్స్
+                farmers[fIdx].lands.forEach((land, lIdx) => {
+                    let div = document.createElement("div");
+                    div.style.cssText = "padding: 5px 0; font-size: 13px;";
+                    div.innerHTML = `
+                        <label style="cursor:pointer; display:flex; align-items:center;">
+                            <input type="checkbox" name="landCheckbox" value="${lIdx}" style="margin-right: 8px; width: 16px; height: 16px;">
+                            <span>Land ID: <strong>${land.landId}</strong> (${land.area} Acres)</span>
+                        </label>
+                    `;
+                    container.appendChild(div);
+                });
+
+                // Select All క్లిక్ చేసినప్పుడు అన్నీ టిక్ అవ్వడానికి
+                document.getElementById("selectAllLands").addEventListener("change", function() {
+                    let checkboxes = document.querySelectorAll("input[name='landCheckbox']");
+                    checkboxes.forEach(cb => cb.checked = this.checked);
+                });
+
+            } else {
+                container.innerHTML = `<span style="color: #888; font-size: 13px;">ఈ రైతుకు ల్యాండ్స్ ఏవీ లేవు</span>`;
+            }
+        }
+    });
+}
+
+// హార్వెస్ట్ సేవ్ చేసే బటన్ (మల్టిపుల్ ల్యాండ్స్ సపోర్ట్)
+const saveHarvestBtn = document.getElementById("saveHarvest");
+if (saveHarvestBtn) {
+    saveHarvestBtn.addEventListener("click", () => {
+        const fIdx = document.getElementById("harvestFarmer").value;
+        
+        let selectedCheckboxes = document.querySelectorAll("input[name='landCheckbox']:checked");
+        let selectedLands = Array.from(selectedCheckboxes).map(cb => cb.value);
+        
+        const hDate = document.getElementById("harvestDate").value;
+        const hAcres = document.getElementById("harvestAcres").value;
+        const hTons = document.getElementById("harvestTons").value;
+
+        if (fIdx === "" || selectedLands.length === 0 || !hDate || !hAcres || !hTons) {
+            alert("దయచేసి రైతును, కనీసం ఒక ల్యాండ్‌ని సెలెక్ట్ చేసి, అన్ని వివరాలు నింపండి!");
+            return;
+        }
+
+        selectedLands.forEach(lIdx => {
+            if (!farmers[fIdx].lands[lIdx].history) {
+                farmers[fIdx].lands[lIdx].history = [];
+            }
+
+            farmers[fIdx].lands[lIdx].history.push({
+                date: hDate,
+                acres: hAcres,
+                tons: hTons
+            });
+        });
+
+        saveData();
+        alert("హార్వెస్ట్ వివరాలు విజయవంతంగా సేవ్ అయ్యాయి!");
+    });
+}
+
