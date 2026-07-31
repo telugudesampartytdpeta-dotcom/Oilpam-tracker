@@ -817,3 +817,87 @@ if (saveHarvestBtn) {
     });
 }
 
+
+// 1. కేవలం ఈరోజు (Today) జరిగిన హార్వెస్ట్ వివరాలు చూపించే ఫంక్షన్
+function renderTodayHarvestTable() {
+    const popupContent = document.getElementById("todayHarvestPopupContent");
+    const badgeCount = document.getElementById("todayHarvestBadgeCount");
+    
+    if (!popupContent || !badgeCount) return;
+
+    popupContent.innerHTML = "";
+    let harvestItems = [];
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    farmers.forEach((farmer, fIdx) => {
+        if (farmer.lands && farmer.lands.length > 0) {
+            farmer.lands.forEach((land, lIdx) => {
+                if (land.history && land.history.length > 0) {
+                    land.history.forEach((h, hIdx) => {
+                        if (h.date) {
+                            let harvestDate = new Date(h.date);
+                            harvestDate.setHours(0, 0, 0, 0);
+                            
+                            let diffTime = today - harvestDate;
+                            let diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+                            // కేవలం ఈరోజే (diffDays === 0) జరిగినవి మాత్రమే
+                            if (diffDays === 0) {
+                                harvestItems.push({
+                                    farmerName: farmer.name,
+                                    ownerId: farmer.owner || '-',
+                                    landId: land.landId,
+                                    date: h.date,
+                                    tons: h.tons || 0,
+                                    acres: h.acres || 0
+                                });
+                            }
+                        }
+                    });
+                }
+            });
+        }
+    });
+
+    badgeCount.innerText = harvestItems.length;
+
+    if (harvestItems.length === 0) {
+        popupContent.innerHTML = `<div style="text-align:center; color:#888; padding:15px; font-size:13px;">ఈరోజు హార్వెస్ట్ రికార్డులు ఏవీ లేవు</div>`;
+        return;
+    }
+
+    harvestItems.forEach(item => {
+        let div = document.createElement("div");
+        div.style.cssText = "padding: 10px; border-bottom: 1px solid #f1f1f1; display: flex; justify-content: space-between; align-items: center; font-size: 12px;";
+        div.innerHTML = `
+            <div>
+                <strong style="color: #333; font-size:13px;">${item.farmerName}</strong><br>
+                <span style="color: #666;">ID: ${item.ownerId} | Land: ${item.landId}</span><br>
+                <span style="color: #28a745; font-weight:bold;">ఎకరాలు: ${item.acres} | టన్స్: ${item.tons} Tons</span>
+            </div>
+            <div>
+                <span style="background:#e8f5e9; color:#2e7d32; padding:3px 6px; border-radius:4px; font-size:11px; font-weight:bold;">ఈరోజే</span>
+            </div>
+        `;
+        popupContent.appendChild(div);
+    });
+}
+
+// 2. పాప్అప్ ఓపెన్/క్లోజ్ చేయడానికి టోగుల్ ఫంక్షన్
+function toggleTodayHarvestPopup() {
+    const modal = document.getElementById("todayHarvestPopupModal");
+    if (modal) {
+        let isVisible = modal.style.display === "flex";
+        modal.style.display = isVisible ? "none" : "flex";
+        if (!isVisible) {
+            renderTodayHarvestTable();
+        }
+    }
+}
+
+// 3. పేజ్ లోడ్ అయినప్పుడు లేదా డేటా సేవ్ అయినప్పుడు కౌంట్ అప్‌డేట్ అవ్వడానికి saveData() మరియు DOMContentLoaded లో ఈ ఫంక్షన్ కాల్ చేయండి
+document.addEventListener("DOMContentLoaded", () => {
+    renderTodayHarvestTable();
+});
