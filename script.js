@@ -97,7 +97,8 @@ function renderFarmerCards(filteredData = null) {
                 <h3 style="margin:0 0 10px 0; color:#333;">${farmer.name}</h3>
                 <div>
                     <button onclick="viewFarmerFullHistory(${fIdx})" style="background:#17a2b8; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; margin-right:5px; width:auto; font-size:11px;">History</button>
-                    <button onclick="editFarmer(${fIdx})" style="background:#e3f2fd; color:#1976d2; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; margin-right:5px; width:auto;">Edit</button>
+                    <button onclick="editFarmer(${fIdx})" style="background-color: #007bff !important; color: white !important; border: none !important; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; width: auto;">✏️ Edit</button>
+
                     <button onclick="deleteFarmer(${fIdx})" style="background:#ffebee; color:#d32f2f; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; width:auto;">Delete</button>
                 </div>
             </div>
@@ -110,8 +111,9 @@ function renderFarmerCards(filteredData = null) {
                     <div style="display:flex; justify-content:space-between; align-items:center;">
                         <span><strong>Land ID:</strong> ${land.landId} (${land.area} Acres)</span>
                         <div>
-                            <button onclick="selectFarmerForHarvest(${fIdx}, ${lIdx})" style="background:#e8f5e9; color:#2e7d32; border:1px solid #a5d6a7; padding:3px 8px; border-radius:4px; cursor:pointer; font-size:12px; margin-right:5px; width:auto;">🌾 Harvester</button>
-                            <button onclick="editLand(${fIdx}, ${lIdx})" style="font-size:11px; background:#f0f0f0; border:none; padding:3px 6px; cursor:pointer; margin-right:3px; width:auto;">Edit</button>
+                            <button onclick="selectFarmerForHarvest(${fIdx}, ${lIdx})" style="background:#e8f5e9; color:#2e7d32; border:1px solid #a5d6a7; padding:3px 8px; border-radius:4px; cursor:pointer; font-size:12px; margin-right:5px; width:auto;">🏝️ Harvester</button>
+                            <button onclick="editFarmer(${fIdx})" style="background-color: #007bff !important; color: white !important; border: none !important; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; width: auto;">✏️ Edit</button>
+
                             <button onclick="deleteLand(${fIdx}, ${lIdx})" style="font-size:11px; background:#ffebee; color:#d32f2f; border:none; padding:3px 6px; cursor:pointer; width:auto;">Delete</button>
                         </div>
                     </div>
@@ -901,3 +903,109 @@ function toggleTodayHarvestPopup() {
 document.addEventListener("DOMContentLoaded", () => {
     renderTodayHarvestTable();
 });
+function editFarmer(fIdx) {
+    const farmer = farmers[fIdx];
+    
+    const newName = prompt("రైతు పేరు (Farmer Name):", farmer.name || "");
+    if (newName === null) return;
+    
+    const newOwner = prompt("Owner ID:", farmer.owner || "");
+    if (newOwner === null) return;
+    
+    const newSap = prompt("SAP ID:", farmer.sap || "");
+    if (newSap === null) return;
+    
+    const newSupplier = prompt("Supplier Name:", farmer.supplier || "");
+    if (newSupplier === null) return;
+
+    farmer.name = newName.trim();
+    farmer.owner = newOwner.trim();
+    farmer.sap = newSap.trim();
+    farmer.supplier = newSupplier.trim();
+
+    saveData();
+    alert("రైతు వివరాలు విజయవంతంగా అప్‌డేట్ చేయվడ్డాయి!");
+}
+function editFarmer(fIdx) {
+    const farmer = farmers[fIdx];
+
+    // ఒకవేళ ఎడిట్ పాప్‌అప్ మోడల్ లేకపోతే ఆటోమేటిక్‌గా క్రియేట్ చేస్తుంది
+    let modal = document.getElementById("editFarmerPopupModal");
+    if (!modal) {
+        modal = document.createElement("div");
+        modal.id = "editFarmerPopupModal";
+        modal.style.cssText = "display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:3000; justify-content:center; align-items:center;";
+        modal.innerHTML = `
+            <div style="background:white; width:90%; max-width:350px; padding:20px; border-radius:8px; box-shadow:0 4px 10px rgba(0,0,0,0.2);">
+                <h3 style="margin:0 0 15px 0; font-size:15px; color:#333;">రైతు వివరాలు సవరించుట (Edit Farmer)</h3>
+                <input type="hidden" id="editFarmerIdx">
+                
+                <div style="margin-bottom:10px;">
+                    <label style="font-size:12px; color:#555;">రైతు పేరు (Farmer Name):</label><br>
+                    <input type="text" id="editFarmerName" style="width:100%; padding:6px; box-sizing:border-box; font-size:13px; border:1px solid #ccc; border-radius:4px;">
+                </div>
+                
+                <div style="margin-bottom:10px;">
+                    <label style="font-size:12px; color:#555;">Owner ID:</label><br>
+                    <input type="text" id="editFarmerOwner" style="width:100%; padding:6px; box-sizing:border-box; font-size:13px; border:1px solid #ccc; border-radius:4px;">
+                </div>
+
+                <div style="margin-bottom:10px;">
+                    <label style="font-size:12px; color:#555;">SAP ID:</label><br>
+                    <input type="text" id="editFarmerSap" style="width:100%; padding:6px; box-sizing:border-box; font-size:13px; border:1px solid #ccc; border-radius:4px;">
+                </div>
+
+                <div style="margin-bottom:15px;">
+                    <label style="font-size:12px; color:#555;">Supplier Name:</label><br>
+                    <input type="text" id="editFarmerSupplier" style="width:100%; padding:6px; box-sizing:border-box; font-size:13px; border:1px solid #ccc; border-radius:4px;">
+                </div>
+
+                <div style="text-align:right;">
+                    <button onclick="closeEditFarmerPopup()" style="background:#ccc; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; margin-right:5px; font-size:12px;">రద్దు చేయი</button>
+                    <button onclick="saveEditedFarmer()" style="background:#28a745; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-size:12px;">సేవ్ చేయి</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+
+    // ప్రస్తుత వివరాలను ఇన్‌పుట్ బాక్స్‌లలో నింపడం
+    document.getElementById("editFarmerIdx").value = fIdx;
+    document.getElementById("editFarmerName").value = farmer.name || "";
+    document.getElementById("editFarmerOwner").value = farmer.owner || "";
+    document.getElementById("editFarmerSap").value = farmer.sap || "";
+    document.getElementById("editFarmerSupplier").value = farmer.supplier || "";
+
+    // పాప్‌అప్ చూపించడం
+    modal.style.display = "flex";
+}
+
+function closeEditFarmerPopup() {
+    let modal = document.getElementById("editFarmerPopupModal");
+    if (modal) modal.style.display = "none";
+}
+
+function saveEditedFarmer() {
+    let fIdx = document.getElementById("editFarmerIdx").value;
+    if (fIdx === "" || !farmers[fIdx]) return;
+
+    let newName = document.getElementById("editFarmerName").value.trim();
+    let newOwner = document.getElementById("editFarmerOwner").value.trim();
+    let newSap = document.getElementById("editFarmerSap").value.trim();
+    let newSupplier = document.getElementById("editFarmerSupplier").value.trim();
+
+    if (!newName || !newOwner) {
+        alert("రైతు పేరు మరియు Owner ID తప్పనిసరిగా ఇవ్వాలి!");
+        return;
+    }
+
+    farmers[fIdx].name = newName;
+    farmers[fIdx].owner = newOwner;
+    farmers[fIdx].sap = newSap;
+    farmers[fIdx].supplier = newSupplier;
+
+    saveData();
+    closeEditFarmerPopup();
+    alert("రైతు వివరాలు విజయవంతంగా అప్‌డేట్ చేయబడ్డాయి!");
+}
+
