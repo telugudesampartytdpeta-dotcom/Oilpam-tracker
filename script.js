@@ -1009,3 +1009,64 @@ function saveEditedFarmer() {
     alert("రైతు వివరాలు విజయవంతంగా అప్‌డేట్ చేయబడ్డాయి!");
 }
 
+let weightBridge = document.getElementById("harvestWeightBridge").value;
+
+// మీరు హార్వెస్ట్ ఆబ్జెక్ట్‌లో డేటా సేవ్ చేసేటప్పుడు దీన్ని ఇలా యాడ్ చేయండి:
+let newHarvest = {
+    date: harvestDate,
+    tons: tonsValue,
+    acres: acresValue,
+    weightBridge: weightBridge // ఇది కూడా సేవ్ అవుతుంది
+};
+function downloadCSVFile(csvContent, fileName) {
+    let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    let url = URL.createObjectURL(blob);
+    
+    let link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", fileName);
+    link.style.display = "none";
+    
+    document.body.appendChild(link);
+    link.click();
+    
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}
+// 1. CSV హెడర్స్ లో Weight Bridge చేర్చడం
+let csvRows = [];
+csvRows.push(["Farmer Name", "Owner ID", "SAP ID", "Supplier", "Land ID", "Area", "Harvest Date", "Tons", "Weight Bridge"].join(","));
+
+// 2. డేటా లూప్ లో వెయిట్ బ్రిడ్జ్ ని జోడించడం
+farmers.forEach(farmer => {
+    if (farmer.lands) {
+        farmer.lands.forEach(land => {
+            if (land.history) {
+                land.history.forEach(h => {
+                    let row = [
+                        `"${farmer.name || ''}"`,
+                        `"${farmer.owner || ''}"`,
+                        `"${farmer.sap || ''}"`,
+                        `"${farmer.supplier || ''}"`,
+                        `"${land.landId || ''}"`,
+                        `"${land.area || ''}"`,
+                        `"${h.date || ''}"`,
+                        `"${h.tons || ''}"`,
+                        `"${h.weightBridge || '-'}"` // ఇక్కడ వెయిట్ బ్రిడ్జ్ యాడ్ అవుతుంది
+                    ];
+                    csvRows.push(row.join(","));
+                });
+            }
+        });
+    }
+});
+
+// 3. డౌన్‌లోడ్ చేసే కోడ్
+let csvContent = "data:text/csv;charset=utf-8," + csvRows.join("\n");
+let encodedUri = encodeURI(csvContent);
+let link = document.createElement("a");
+link.setAttribute("href", encodedUri);
+link.setAttribute("download", "Harvest_Report.csv");
+document.body.appendChild(link);
+link.click();
+document.body.removeChild(link);
