@@ -1052,7 +1052,47 @@ farmers.forEach(farmer => {
                         `"${land.area || ''}"`,
                         `"${h.date || ''}"`,
                         `"${h.tons || ''}"`,
-                        `"${h.weightBridge || '-'}"` // ఇక్కడ వెయిట్ బ్రిడ్జ్ యాడ్ అవుతుంది
+
+                    function updateDashboard() {
+    let totalLands = 0;
+    let totalHarvests = 0;
+    let totalTonsSum = 0;
+    let todayHarvestCount = 0;
+    let todayTonsSum = 0;
+
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    farmers.forEach(farmer => {
+        if (farmer.lands) {
+            totalLands += farmer.lands.length;
+            farmer.lands.forEach(land => {
+                if (land.history) {
+                    totalHarvests += land.history.length;
+                    land.history.forEach(h => {
+                        let t = parseFloat(h.tons) || 0;
+                        totalTonsSum += t;
+                        if (h.date === todayStr) {
+                            todayHarvestCount++;
+                            todayTonsSum += t;
+                        }
+                    });
+                }
+            });
+        }
+    });
+
+    const farmerCountEl = document.getElementById("farmerCount");
+    const landCountEl = document.getElementById("landCount");
+    const harvestCountEl = document.getElementById("harvestCount");
+    const totalTonsEl = document.getElementById("totalTons");
+    const todayHarvestCountEl = document.getElementById("todayHarvestCount");
+
+    if (farmerCountEl) farmerCountEl.innerText = farmers.length;
+    if (landCountEl) landCountEl.innerText = totalLands;
+    if (harvestCountEl) harvestCountEl.innerText = totalHarvests;
+    if (totalTonsEl) totalTonsEl.innerText = totalTonsSum.toFixed(2);
+    if (todayHarvestCountEl) todayHarvestCountEl.innerText = `${todayHarvestCount} (${todayTonsSum.toFixed(2)} Tons)`;
+}
                     ];
                     csvRows.push(row.join(","));
                 });
@@ -1070,3 +1110,92 @@ link.setAttribute("download", "Harvest_Report.csv");
 document.body.appendChild(link);
 link.click();
 document.body.removeChild(link);
+function updateDashboard() {
+    let totalLands = 0;
+    let totalHarvests = 0;
+    let totalTonsSum = 0;
+    let todayHarvestCount = 0;
+    let todayTonsSum = 0;
+
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    farmers.forEach(farmer => {
+        if (farmer.lands) {
+            totalLands += farmer.lands.length;
+            farmer.lands.forEach(land => {
+                if (land.history) {
+                    totalHarvests += land.history.length;
+                    land.history.forEach(h => {
+                        let t = parseFloat(h.tons) || 0;
+                        totalTonsSum += t;
+                        if (h.date === todayStr) {
+                            todayHarvestCount++;
+                            todayTonsSum += t;
+                        }
+                    });
+                }
+            });
+        }
+    });
+
+    const farmerCountEl = document.getElementById("farmerCount");
+    const landCountEl = document.getElementById("landCount");
+    const harvestCountEl = document.getElementById("harvestCount");
+    const totalTonsEl = document.getElementById("totalTons");
+    const todayHarvestCountEl = document.getElementById("todayHarvestCount");
+
+    if (farmerCountEl) farmerCountEl.innerText = farmers.length;
+    if (landCountEl) landCountEl.innerText = totalLands;
+    if (harvestCountEl) harvestCountEl.innerText = totalHarvests;
+    if (totalTonsEl) totalTonsEl.innerText = totalTonsSum.toFixed(2);
+    if (todayHarvestCountEl) todayHarvestCountEl.innerText = `${todayHarvestCount} (${todayTonsSum.toFixed(2)} Tons)`;
+}
+// CSV డౌన్‌లోడ్ ఫంక్షన్ - కాటా పేర్లతో (Weight Bridge Names)
+function downloadHarvestCSV() {
+    let startDate = document.getElementById("startDate") ? document.getElementById("startDate").value : "";
+    let endDate = document.getElementById("endDate") ? document.getElementById("endDate").value : "";
+    
+    let csvRows = [];
+    // CSV హెడర్స్ లో Kata Name స్పష్టంగా చూపించడానికి
+    csvRows.push(["Farmer Name", "Owner ID", "SAP ID", "Supplier", "Land ID", "Area (Acres)", "Harvest Date", "Tons", "Kata Name / Weight Bridge"].map(v => `"${v}"`).join(","));
+
+    let recordCount = 0;
+
+    farmers.forEach(farmer => {
+        if (farmer.lands) {
+            farmer.lands.forEach(land => {
+                if (land.history) {
+                    land.history.forEach(h => {
+                        let hDate = h.date;
+                        let matches = true;
+                        if (startDate && hDate < startDate) matches = false;
+                        if (endDate && hDate > endDate) matches = false;
+
+                        if (matches) {
+                            csvRows.push([
+                                farmer.name || '',
+                                farmer.owner || '',
+                                farmer.sap || '',
+                                farmer.supplier || '',
+                                land.landId || '',
+                                land.area || '',
+                                hDate || '',
+                                h.tons || '',
+                                h.weightBridge || '' // ఇక్కడ కాటా పేరు ప్రింట్ అవుతుంది
+                            ].map(v => `"${v}"`).join(","));
+                            recordCount++;
+                        }
+                    });
+                }
+            });
+        }
+    });
+
+    if (recordCount === 0) {
+        alert("సెలెక్ట్ చేసిన తేదీలలో హార్వెస్ట్ రికార్డులు ఏవీ లేవు!");
+        return;
+    }
+
+    let csvContent = "\uFEFF" + csvRows.join("\n");
+    downloadCSVFile(csvContent, startDate && endDate ? `Harvest_${startDate}_to_${endDate}.csv` : 'Harvest_Report.csv');
+}
