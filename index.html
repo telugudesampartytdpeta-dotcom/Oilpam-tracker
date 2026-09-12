@@ -112,8 +112,7 @@
             </div>
 
             <input type="date" id="harvestDate">
-            <input type="number" id="harvestAcres" placeholder="Harvested Acres">
-            <input type="number" id="harvestTons" placeholder="Harvested Tons">
+
             <div style="margin-bottom:10px;">
     <label style="font-size:12px; color:#555; font-weight:bold;">Weight Bridge Select:</label><br>
     <select id="harvestWeightBridge" style="width:100%; padding:6px; font-size:13px; border:1px solid #ccc; border-radius:4px; box-sizing:border-box;">
@@ -128,11 +127,32 @@
         </div>
 
 
-<!-- 10 Days Harvest Alert Icon -->
-<div style="position: relative; display: inline-block; cursor: pointer;" onclick="toggleHarvestPopup()">
-    <span style="font-size: 24px;" title="10 Days Harvest Alerts">🔔</span>
-    <span id="harvestBadgeCount" style="position: absolute; top: -5px; right: -10px; background: red; color: white; border-radius: 50%; padding: 2px 6px; font-size: 11px; font-weight: bold;">0</span>
+<!-- 10 Days Harvest Notification Icon (New Design) -->
+<div style="display: flex; align-items: center; justify-content: space-between; background: #eefecr; background-color: #f0f7ff; border: 1px solid #b6d4fe; padding: 10px 15px; border-radius: 8px; margin: 15px 0;">
+    <div style="display: flex; align-items: center; gap: 10px;">
+        <div onclick="toggle10DaysPopup()" style="position: relative; cursor: pointer; font-size: 24px; background: #ffffff; padding: 8px; border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center;">
+            📅
+            <span id="harvestBadgeCount" style="position: absolute; top: -4px; right: -4px; background: #d32f2f; color: white; border-radius: 50%; padding: 2px 6px; font-size: 11px; font-weight: bold; min-width: 15px; text-align: center;">0</span>
+        </div>
+        <div>
+            <strong style="color: #0c5460; font-size: 13px;">10-Days Harvest Reminder</strong>
+            <p style="margin: 0; font-size: 11px; color: #6c757d;">కటా చేసి 10 రోజులు పూర్తయిన తోటలు</p>
+        </div>
+    </div>
+    <button onclick="toggle10DaysPopup()" style="background: #0d6efd; color: white; border: none; padding: 6px 12px; border-radius: 5px; font-size: 12px; font-weight: bold; cursor: pointer;">View List</button>
 </div>
+
+<!-- 10 Days Harvest Popup Modal -->
+<div id="harvestPopupModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: center;">
+    <div style="background: white; width: 90%; max-width: 450px; padding: 20px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); position: relative; max-height: 80vh; display: flex; flex-direction: column;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0d6efd; padding-bottom: 10px;">
+            <h3 style="margin: 0; font-size: 16px; color: #0d6efd;">📅 10 Days Harvest Alert</h3>
+            <button onclick="toggle10DaysPopup()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #888;">✕</button>
+        </div>
+        <div id="harvestPopupContent" style="overflow-y: auto; margin-top: 15px; flex-grow: 1;"></div>
+    </div>
+</div>
+
 
 <!-- Popup Box (Initially Hidden) -->
 <div id="harvestPopupModal" style="display: none; position: absolute; right: 0; top: 35px; width: 320px; background: white; border: 1px solid #ccc; box-shadow: 0 4px 8px rgba(0,0,0,0.15); border-radius: 8px; z-index: 1000; padding: 10px;">
