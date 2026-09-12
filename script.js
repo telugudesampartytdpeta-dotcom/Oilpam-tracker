@@ -154,7 +154,7 @@ function renderFarmerCards(filteredData = null) {
     });
 }
 
-// 5. 10 DAYS HARVEST REMINDER & POPUP (Done నొక్కేవరకు ఉంటుంది)
+// 5. 10 DAYS HARVEST REMINDER & POPUP (తేదీల వారీగా గ్రూప్ చేసి సీరియల్ నంబర్‌తో చూపించుట)
 function renderHarvestedTable() {
     const popupContent = document.getElementById("harvestPopupContent");
     const badgeCount = document.getElementById("harvestBadgeCount");
@@ -200,18 +200,36 @@ function renderHarvestedTable() {
         return;
     }
 
+    let groupedByDate = {};
     harvestItems.forEach(item => {
-        let div = document.createElement("div");
-        div.style.cssText = "padding: 12px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; font-size: 12px;";
-        div.innerHTML = `
-            <div>
-                <strong style="color: #333; font-size:14px;">${item.farmerName}</strong><br>
-                <span style="color: #555;">SAP ID: ${item.sapId} | Land: ${item.landId}</span><br>
-                <span style="color: #d32f2f; font-weight:bold;">కటా తేదీ: ${item.date} (${item.days} రోజుల క్రితం)</span>
-            </div>
-            <button onclick="markHarvestDone(${item.fIdx}, ${item.lIdx}, ${item.hIdx})" style="background:#28a745; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-size:11px; font-weight:bold;">Done</button>
-        `;
-        popupContent.appendChild(div);
+        let parts = item.date.split('-');
+        let displayDate = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : item.date;
+        
+        if (!groupedByDate[displayDate]) {
+            groupedByDate[displayDate] = [];
+        }
+        groupedByDate[displayDate].push(item);
+    });
+
+    Object.keys(groupedByDate).sort().forEach(dateKey => {
+        let dateHeader = document.createElement("div");
+        dateHeader.style.cssText = "background: #e9ecef; color: #333; padding: 6px 10px; font-weight: bold; font-size: 13px; margin-top: 8px; border-radius: 4px;";
+        dateHeader.innerText = `📅 తేదీ: ${dateKey}`;
+        popupContent.appendChild(dateHeader);
+
+        groupedByDate[dateKey].forEach((item, index) => {
+            let div = document.createElement("div");
+            div.style.cssText = "padding: 10px 12px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; font-size: 12px;";
+            div.innerHTML = `
+                <div>
+                    <strong style="color: #333; font-size:13px;">${index + 1}. ${item.farmerName}</strong><br>
+                    <span style="color: #555; display:inline-block; margin-left:14px;">SAP: ${item.sapId} | Land: ${item.landId}</span><br>
+                    <span style="color: #d32f2f; font-weight:bold; display:inline-block; margin-left:14px;">(${item.days} రోజులు పూర్తయ్యాయి)</span>
+                </div>
+                <button onclick="markHarvestDone(${item.fIdx}, ${item.lIdx}, ${item.hIdx})" style="background:#28a745; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:11px; font-weight:bold;">Done</button>
+            `;
+            popupContent.appendChild(div);
+        });
     });
 }
 
@@ -283,7 +301,7 @@ function renderTodayHarvestTable() {
     });
 }
 
-// 6. CSV DOWNLOAD FIX (.bin రాకుండా .csv లోనే డౌన్‌లోడ్ అవుతుంది)
+// 6. CSV DOWNLOAD FIX
 function downloadCSVFile(csvContent, fileName) {
     let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     let url = URL.createObjectURL(blob);
@@ -379,7 +397,6 @@ function deleteLand(fIdx, lIdx) {
     }
 }
 
-// HISTORY POPUP (With EDIT & DELETE Functionality)
 function viewFarmerFullHistory(farmerIndex) {
     let farmer = farmers[farmerIndex];
     let modal = document.getElementById("historyPopupModal");
