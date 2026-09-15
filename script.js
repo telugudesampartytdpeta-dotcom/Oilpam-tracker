@@ -1,7 +1,11 @@
+// ==========================================
 // 1. LOCAL STORAGE LOAD & SAVE
+// ==========================================
 let farmers = JSON.parse(localStorage.getItem("nbl_farmers_data")) || JSON.parse(localStorage.getItem("farmersData")) || [];
 
 function saveData() {
+    // రైతుల పేర్లను ఆల్ఫాబెటికల్ ఆర్డర్‌లో సార్ట్ చేయడం
+    farmers.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
     localStorage.setItem("nbl_farmers_data", JSON.stringify(farmers));
     localStorage.setItem("farmersData", JSON.stringify(farmers));
     updateDashboard();
@@ -12,7 +16,9 @@ function saveData() {
     renderFarmerCards();
 }
 
+// ==========================================
 // 2. DASHBOARD UPDATE
+// ==========================================
 function updateDashboard() {
     let totalLands = 0;
     let totalHarvests = 0;
@@ -54,7 +60,9 @@ function updateDashboard() {
     if (todayHarvestCountEl) todayHarvestCountEl.innerText = `${todayHarvestCount} (${todayTonsSum.toFixed(2)} Tons)`;
 }
 
+// ==========================================
 // 3. DROPDOWNS & WEIGHT BRIDGES
+// ==========================================
 function populateFarmerDropdowns() {
     const farmerSelect = document.getElementById("farmerSelect");
     const harvestFarmer = document.getElementById("harvestFarmer");
@@ -87,7 +95,9 @@ function updateFarmerNameSelectDropdown() {
     }
 }
 
-// 4. RENDER FARMER CARDS (Owner ID Based with Full Surnames Display)
+// ==========================================
+// 4. RENDER FARMER CARDS
+// ==========================================
 function renderFarmerCards(filteredData = null) {
     const list = document.getElementById("farmerList");
     if (!list) return;
@@ -142,7 +152,9 @@ function renderFarmerCards(filteredData = null) {
     });
 }
 
-// 5. 10 DAYS HARVEST REMINDER & POPUP
+// ==========================================
+// 5. REMINDERS & POPUPS
+// ==========================================
 function renderHarvestedTable() {
     const popupContent = document.getElementById("harvestPopupContent");
     const badgeCount = document.getElementById("harvestBadgeCount");
@@ -211,7 +223,7 @@ function renderHarvestedTable() {
             div.innerHTML = `
                 <div>
                     <strong style="color: #333; font-size:13px;">${index + 1}. ${item.farmerName}</strong><br>
-                    <span style="color: #555; display:inline-block; margin-left:14px;">Owner ID: ${item.sapId} | Land: ${item.landId}</span><br>
+                    <span style="color: #555; display:inline-block; margin-left:14px;">Owner/SAP: ${item.sapId} | Land: ${item.landId}</span><br>
                     <span style="color: #d32f2f; font-weight:bold; display:inline-block; margin-left:14px;">(${item.days} రోజులు పూర్తయ్యాయి)</span>
                 </div>
                 <button onclick="markHarvestDone(${item.fIdx}, ${item.lIdx}, ${item.hIdx})" style="background:#28a745; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:11px; font-weight:bold;">Done</button>
@@ -260,7 +272,7 @@ function renderTodayHarvestTable() {
                 if (land.history) {
                     land.history.forEach((h) => {
                         if (h.date === todayStr) {
-                            harvestItems.push({ farmerName: farmer.name, sapId: farmer.owner || farmer.sap || '-', landId: land.landId, date: h.date, tons: h.tons || 0, acres: h.acres || 0 });
+                            harvestItems.push({ farmerName: farmer.name, sapId: farmer.sap || farmer.owner || '-', landId: land.landId, date: h.date, tons: h.tons || 0, acres: h.acres || 0 });
                         }
                     });
                 }
@@ -280,7 +292,7 @@ function renderTodayHarvestTable() {
         div.innerHTML = `
             <div>
                 <strong style="color: #333; font-size:13px;">${item.farmerName}</strong><br>
-                <span style="color: #666;">Owner ID: ${item.sapId} | Land: ${item.landId}</span><br>
+                <span style="color: #666;">SAP ID: ${item.sapId} | Land: ${item.landId}</span><br>
                 <span style="color: #28a745; font-weight:bold;">ఎకరాలు: ${item.acres} | టన్స్: ${item.tons} Tons</span>
             </div>
             <span style="background:#e8f5e9; color:#2e7d32; padding:3px 6px; border-radius:4px; font-size:11px; font-weight:bold;">ఈరోజే</span>
@@ -289,7 +301,9 @@ function renderTodayHarvestTable() {
     });
 }
 
-// 6. EXCEL / CSV UPLOAD & DOWNLOAD
+// ==========================================
+// 6. CSV & BACKUP DOWNLOADS
+// ==========================================
 function downloadCSVFile(csvContent, fileName) {
     let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     let url = URL.createObjectURL(blob);
@@ -309,7 +323,7 @@ function downloadHarvestCSV() {
     let endDate = document.getElementById("endDate") ? document.getElementById("endDate").value : "";
     
     let csvRows = [];
-    csvRows.push(["Land ID", "Farmer Name", "Acres", "Tons", "Owner ID", "Weight Bridge Name"].map(v => `"${v}"`).join(","));
+    csvRows.push(["Land ID", "Farmer Name", "Acres", "Tons", "SAP ID", "Weight Bridge Name"].map(v => `"${v}"`).join(","));
 
     let recordCount = 0;
 
@@ -324,14 +338,14 @@ function downloadHarvestCSV() {
                         if (endDate && hDate > endDate) matches = false;
 
                         if (matches) {
-                            let ownerIdVal = farmer.owner || farmer.sap || '';
+                            let sapIdVal = farmer.sap || farmer.owner || '';
 
                             csvRows.push([
                                 land.landId || '',
                                 farmer.name || '',
                                 h.acres || land.area || '',
                                 h.tons || '',
-                                ownerIdVal,
+                                sapIdVal,
                                 h.weightBridge || ''
                             ].map(v => `"${v}"`).join(","));
                             recordCount++;
@@ -378,7 +392,9 @@ function importDataFromJSON(event) {
     reader.readAsText(file);
 }
 
+// ==========================================
 // 7. EDIT, DELETE & HISTORY ACTIONS
+// ==========================================
 function editFarmer(fIdx) {
     const farmer = farmers[fIdx];
     let newName = prompt("రైతు పేరు:", farmer.name || "");
@@ -521,7 +537,9 @@ function selectFarmerForHarvest(fIdx, lIdx) {
     }
 }
 
-// 8. DOM LOAD & INIT (Excel Upload with Combined Farmer & Supplier Surnames)
+// ==========================================
+// 8. DOM LOAD & INTERACTION LOGIC
+// ==========================================
 document.addEventListener("DOMContentLoaded", () => {
     renderFarmerCards();
     updateDashboard();
@@ -530,6 +548,7 @@ document.addEventListener("DOMContentLoaded", () => {
     renderHarvestedTable();
     renderTodayHarvestTable();
 
+    // EXCEL IMPORT LOGIC (రైతుల సంఖ్య 352 ఎప్పటికీ తగ్గకుండా పర్ఫెక్ట్ మెర్జ్ లాజిక్)
     const importBtn = document.getElementById("importBtn");
     const excelFileInput = document.getElementById("excelFileInput");
 
@@ -545,93 +564,99 @@ document.addEventListener("DOMContentLoaded", () => {
             reader.onload = function(e) {
                 try {
                     let data = new Uint8Array(e.target.result);
-                    let workbook = XLSX.read(data, { type: 'array' });
+                    let workbook = XLSX.read(data, { type: 'array', cellText: false, cellDates: true });
                     let firstSheetName = workbook.SheetNames[0];
                     let worksheet = workbook.Sheets[firstSheetName];
-                    let jsonData = XLSX.utils.sheet_to_json(worksheet);
+                    let jsonData = XLSX.utils.sheet_to_json(worksheet, { raw: false });
 
                     if (jsonData.length === 0) {
                         alert("ఎక్సెల్ ఫైల్‌లో డేటా ఖాళీగా ఉంది!");
                         return;
                     }
 
-                    let newFarmersMap = new Map();
-
                     jsonData.forEach(row => {
-                        // 1. Farmer Full Name (Surname + First Name)
                         let fLastName = String(row['Owner Last Name'] || row['Surname'] || row['ఇంటి పేరు'] || row['Last Name'] || '').trim();
                         let fFirstName = String(row['Farm Owner Name'] || row['First Name'] || row['Farmer Name'] || row['పేరు'] || row['Name'] || '').trim();
-                        
-                        let farmerName = '';
-                        if (fLastName && fFirstName) {
-                            farmerName = `${fLastName} ${fFirstName}`;
-                        } else {
-                            farmerName = fFirstName || fLastName || '';
-                        }
+                        let farmerName = (fLastName && fFirstName) ? `${fLastName} ${fFirstName}` : (fFirstName || fLastName || '');
+                        farmerName = farmerName.replace(/\s+/g, ' ').trim();
 
-                        // 2. Supplier Full Name (Supplier Last Name + Supplier First Name)
                         let sLastName = String(row['Supplier Last Name'] || '').trim();
                         let sFirstName = String(row['Supplier Name'] || '').trim();
-                        
-                        let supplierName = '';
-                        if (sLastName && sFirstName) {
-                            supplierName = `${sLastName} ${sFirstName}`;
-                        } else {
-                            supplierName = sFirstName || sLastName || farmerName;
-                        }
+                        let supplierName = (sLastName && sFirstName) ? `${sLastName} ${sFirstName}` : (sFirstName || sLastName || farmerName);
 
                         let ownerId = String(row['Farmowner ID'] || row['Owner ID'] || '').trim();
                         let sapId = String(row['SAP ID'] || row['SAP'] || '').trim();
-                        let landId = String(row['Farmer/Land ID'] || row['Land ID'] || row['భూమి ID'] || '').trim();
-                        let area = row['Area Proposed'] || row['Acres'] || row['ఎకరాలు'] || row['Area'] || 0;
+                        let rawLandId = String(row['Farmer/Land ID'] || row['Land ID'] || row['భూమి ID'] || '').trim();
+                        let area = parseFloat(row['Area Proposed'] || row['Acres'] || row['ఎకరాలు'] || row['Area'] || 0);
                         let phoneNum = String(row['Phone Number'] || row['Phone'] || row['Mobile'] || '').trim();
 
-                        if (farmerName) {
-                            let key = ownerId ? ownerId : (sapId ? sapId : farmerName);
+                        if (ownerId || sapId || farmerName) {
+                            let existingFarmer = null;
 
-                            if (!newFarmersMap.has(key)) {
-                                newFarmersMap.set(key, {
+                            // 1. Owner ID తో వెతకడం
+                            if (ownerId) {
+                                existingFarmer = farmers.find(f => String(f.owner || '').trim().toLowerCase() === ownerId.toLowerCase());
+                            }
+                            // 2. దొరకకపోతే SAP ID తో వెతకడం
+                            if (!existingFarmer && sapId) {
+                                existingFarmer = farmers.find(f => String(f.sap || '').trim().toLowerCase() === sapId.toLowerCase());
+                            }
+                            // 3. చివరగా పేరుతో వెతకడం
+                            if (!existingFarmer && farmerName) {
+                                existingFarmer = farmers.find(f => String(f.name || '').trim().toLowerCase() === farmerName.toLowerCase());
+                            }
+
+                            if (existingFarmer) {
+                                if (farmerName) existingFarmer.name = farmerName;
+                                if (sapId) existingFarmer.sap = sapId;
+                                if (ownerId) existingFarmer.owner = ownerId;
+                                if (supplierName) existingFarmer.supplier = supplierName;
+                                
+                                if (phoneNum && phoneNum !== "" && phoneNum !== "undefined" && phoneNum !== "null") {
+                                    existingFarmer.phone = phoneNum;
+                                }
+
+                                if (!existingFarmer.lands) existingFarmer.lands = [];
+
+                                if (rawLandId && rawLandId !== "undefined" && rawLandId !== "null" && rawLandId !== "") {
+                                    let existingLand = existingFarmer.lands.find(l => 
+                                        String(l.landId || '').trim().toLowerCase() === rawLandId.toLowerCase()
+                                    );
+
+                                    if (existingLand) {
+                                        if (area > 0) existingLand.area = area;
+                                        if (!existingLand.history) existingLand.history = [];
+                                    } else {
+                                        existingFarmer.lands.push({
+                                            landId: rawLandId,
+                                            area: area,
+                                            history: []
+                                        });
+                                    }
+                                }
+                            } else {
+                                farmers.push({
                                     name: farmerName,
                                     owner: ownerId,
                                     sap: sapId,
                                     supplier: supplierName,
-                                    phone: phoneNum,
-                                    lands: []
-                                });
-                            }
-
-                            let farmerObj = newFarmersMap.get(key);
-                            
-                            // ఒకవేళ సప్లయర్ పేరు వేరే రో లో ఉన్నా అప్‌డేట్ అవుతుంది
-                            if (supplierName && supplierName !== farmerName) {
-                                farmerObj.supplier = supplierName;
-                            }
-
-                            if (phoneNum && !farmerObj.phone) {
-                                farmerObj.phone = phoneNum;
-                            }
-
-                            if (landId) {
-                                let landExists = farmerObj.lands.some(l => l.landId === landId);
-                                if (!landExists) {
-                                    farmerObj.lands.push({
-                                        landId: landId,
-                                        area: parseFloat(area) || 0,
+                                    phone: (phoneNum !== "undefined" && phoneNum !== "null") ? phoneNum : "",
+                                    lands: (rawLandId && rawLandId !== "undefined" && rawLandId !== "null" && rawLandId !== "") ? [{
+                                        landId: rawLandId,
+                                        area: area,
                                         history: []
-                                    });
-                                }
+                                    }] : []
+                                });
                             }
                         }
                     });
 
-                    farmers = Array.from(newFarmersMap.values());
-
                     saveData();
-                    alert("ఎక్సెల్ ఫైల్ విజయవంతంగా ఇంపోర్ట్ అయింది, రైతు మరియు సప్లయర్ ఇంటిపేర్లతో పేర్లు సెట్ అయ్యాయి!");
+                    alert("ఎక్సెల్ ఫైల్ విజయవంతంగా ఇంపోర్ట్ అయింది! రైతుల సంఖ్య మరియు హిస్టరీ సురక్షితంగా ఉన్నాయి.");
                     excelFileInput.value = "";
                 } catch (error) {
                     console.error(error);
-                    alert("ఫైల్ ప్రాసెస్ చేయడంలో లోపం ఏర్పడింది. సరైన ఫార్మాట్ ఇవ్వండి.");
+                    alert("ఫైల్ ప్రాసెస్ చేయడంలో లోపం ఏర్పడింది.");
                 }
             };
             reader.readAsArrayBuffer(file);
@@ -839,52 +864,3 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 });
-function downloadHarvestCSV() {
-    let startDate = document.getElementById("startDate") ? document.getElementById("startDate").value : "";
-    let endDate = document.getElementById("endDate") ? document.getElementById("endDate").value : "";
-    
-    let csvRows = [];
-    // ఇక్కడ హెడర్ 'Owner ID' బదులుగా 'SAP ID' అని మార్చబడింది
-    csvRows.push(["Land ID", "Farmer Name", "Acres", "Tons", "SAP ID", "Weight Bridge Name"].map(v => `"${v}"`).join(","));
-
-    let recordCount = 0;
-
-    farmers.forEach(farmer => {
-        if (farmer.lands) {
-            farmer.lands.forEach(land => {
-                if (land.history) {
-                    land.history.forEach(h => {
-                        let hDate = h.date;
-                        let matches = true;
-                        if (startDate && hDate < startDate) matches = false;
-                        if (endDate && hDate > endDate) matches = false;
-
-                        if (matches) {
-                            // ఇక్కడ farmer.owner బదులుగా farmer.sap తీసుకునేలా సెట్ చేయబడింది
-                            let sapIdVal = farmer.sap || farmer.owner || '';
-
-                            csvRows.push([
-                                land.landId || '',
-                                farmer.name || '',
-                                h.acres || land.area || '',
-                                h.tons || '',
-                                sapIdVal, // ఇక్కడ SAP ID ప్రింట్ అవుతుంది
-                                h.weightBridge || ''
-                            ].map(v => `"${v}"`).join(","));
-                            recordCount++;
-                        }
-                    });
-                }
-            });
-        }
-    });
-
-    if (recordCount === 0) {
-        alert("సెలెక్ట్ చేసిన తేదీలలో రికార్డులు ఏవీ లేవు!");
-        return;
-    }
-
-    let csvContent = "\uFEFF" + csvRows.join("\n");
-    let fileName = startDate && endDate ? `Harvest_${startDate}_to_${endDate}.csv` : 'Harvest_Report.csv';
-    downloadCSVFile(csvContent, fileName);
-}
