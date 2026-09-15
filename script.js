@@ -312,26 +312,12 @@ function renderTodayHarvestTable() {
 // ==========================================
 // 6. CSV & BACKUP DOWNLOADS
 // ==========================================
-function downloadCSVFile(csvContent, fileName) {
-    let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    let url = URL.createObjectURL(blob);
-    let link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", fileName);
-    document.body.appendChild(link);
-    link.click();
-    setTimeout(() => {
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-    }, 200);
-}
-
-// మీరు అడిగిన 9 కాలమ్స్‌తో అప్‌డేట్ చేసిన డౌన్‌లోడ్ ఫంక్షన్
 function downloadHarvestCSV() {
     let startDate = document.getElementById("startDate") ? document.getElementById("startDate").value : "";
     let endDate = document.getElementById("endDate") ? document.getElementById("endDate").value : "";
     
     let csvRows = [];
+    // మీరు కోరిన 9 కాలమ్స్ హెడర్స్
     csvRows.push([
         "S.No", 
         "Cluster No.", 
@@ -362,7 +348,7 @@ function downloadHarvestCSV() {
 
                         if (matches) {
                             let clusterNo = farmer.cluster || ''; 
-                            let areaManager = "Dr.V.K. Gogireddy"; // ఆటోమేటిక్‌గా వచ్చే పేరు
+                            let areaManager = "Dr.V.K. Gogireddy"; // ఆటోమేటిక్‌గా ఈ పేరే వస్తుంది
                             let supplierId = farmer.sap || farmer.owner || farmer.supplier || '';
                             let expectedCC = h.weightBridge || '';
 
@@ -393,7 +379,18 @@ function downloadHarvestCSV() {
 
     let csvContent = "\uFEFF" + csvRows.join("\n");
     let fileName = startDate && endDate ? `Harvest_${startDate}_to_${endDate}.csv` : 'Harvest_Report.csv';
-    downloadCSVFile(csvContent, fileName);
+    
+    let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    let url = URL.createObjectURL(blob);
+    let link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", fileName);
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    }, 200);
 }
 
 function exportDataToExcel() {
