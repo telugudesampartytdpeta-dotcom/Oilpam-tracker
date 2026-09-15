@@ -109,7 +109,7 @@ function renderFarmerCards(filteredData = null) {
     let htmlArray = [];
     for (let i = 0; i < dataToRender.length; i++) {
         let farmer = dataToRender[i];
-        let fIdx = farmers.indexOf(farmer); // உண்மையான ఇండెక్స్ కోసం
+        let fIdx = farmers.indexOf(farmer);
         let phoneDisplay = farmer.phone ? `<a href="tel:${farmer.phone}" style="color:#28a745; text-decoration:none; font-weight:bold;">📞 ${farmer.phone}</a>` : '<span style="color:#888;">Phone N/A</span>';
 
         let landsHtml = '';
@@ -326,14 +326,27 @@ function downloadCSVFile(csvContent, fileName) {
     }, 200);
 }
 
+// మీరు అడిగిన 9 కాలమ్స్‌తో అప్‌డేట్ చేసిన డౌన్‌లోడ్ ఫంక్షన్
 function downloadHarvestCSV() {
     let startDate = document.getElementById("startDate") ? document.getElementById("startDate").value : "";
     let endDate = document.getElementById("endDate") ? document.getElementById("endDate").value : "";
     
     let csvRows = [];
-    csvRows.push(["Land ID", "Farmer Name", "Acres", "Tons", "SAP ID", "Weight Bridge Name"].map(v => `"${v}"`).join(","));
+    csvRows.push([
+        "S.No", 
+        "Cluster No.", 
+        "Area Manager", 
+        "Land ID", 
+        "Owner Name", 
+        "No. of Acres Harvesting", 
+        "Estimated Tons", 
+        "Supplier ID", 
+        "Expected CC"
+    ].map(v => `"${v}"`).join(","));
 
     let recordCount = 0;
+    let serialNo = 1;
+
     for (let i = 0; i < farmers.length; i++) {
         let farmer = farmers[i];
         if (farmer.lands) {
@@ -348,15 +361,23 @@ function downloadHarvestCSV() {
                         if (endDate && hDate > endDate) matches = false;
 
                         if (matches) {
-                            let sapIdVal = farmer.sap || farmer.owner || '';
+                            let clusterNo = farmer.cluster || ''; 
+                            let areaManager = "Dr.V.K. Gogireddy"; // ఆటోమేటిక్‌గా వచ్చే పేరు
+                            let supplierId = farmer.sap || farmer.owner || farmer.supplier || '';
+                            let expectedCC = h.weightBridge || '';
+
                             csvRows.push([
+                                serialNo++,
+                                clusterNo,
+                                areaManager,
                                 land.landId || '',
                                 farmer.name || '',
                                 h.acres || land.area || '',
                                 h.tons || '',
-                                sapIdVal,
-                                h.weightBridge || ''
+                                supplierId,
+                                expectedCC
                             ].map(v => `"${v}"`).join(","));
+
                             recordCount++;
                         }
                     }
@@ -854,7 +875,6 @@ document.addEventListener("DOMContentLoaded", () => {
         downloadCSVBtn.addEventListener("click", downloadHarvestCSV);
     }
 
-    // సెర్చ్ టైమ్ లాగ్ రాకుండా పర్ఫెక్ట్ డిబౌన్స్ (Debounce)
     const searchInput = document.getElementById("search");
     if (searchInput) {
         let searchTimeout;
