@@ -310,14 +310,14 @@ function renderTodayHarvestTable() {
 }
 
 // ==========================================
-// 6. CSV & BACKUP DOWNLOADS
+// 6. CSV & BACKUP DOWNLOADS (APP & BROWSER COMPATIBLE)
 // ==========================================
 function downloadHarvestCSV() {
     let startDate = document.getElementById("startDate") ? document.getElementById("startDate").value : "";
     let endDate = document.getElementById("endDate") ? document.getElementById("endDate").value : "";
     
     let csvRows = [];
-    // మీరు కోరిన 9 కాలమ్స్ హెడర్స్
+    // 9 హెడర్స్ మరియు ఏరియా మేనేజర్ పేరుతో కూడిన పట్టిక
     csvRows.push([
         "S.No", 
         "Cluster No.", 
@@ -348,7 +348,7 @@ function downloadHarvestCSV() {
 
                         if (matches) {
                             let clusterNo = farmer.cluster || ''; 
-                            let areaManager = "Dr.V.K. Gogireddy"; // ఆటోమేటిక్‌గా ఈ పేరే వస్తుంది
+                            let areaManager = "Dr.V.K. Gogireddy"; 
                             let supplierId = farmer.sap || farmer.owner || farmer.supplier || '';
                             let expectedCC = h.weightBridge || '';
 
@@ -380,16 +380,15 @@ function downloadHarvestCSV() {
     let csvContent = "\uFEFF" + csvRows.join("\n");
     let fileName = startDate && endDate ? `Harvest_${startDate}_to_${endDate}.csv` : 'Harvest_Report.csv';
     
-    let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    let url = URL.createObjectURL(blob);
+    // యాప్ మరియు బ్రౌజర్ రెండింటిలోనూ 'bin' ఎర్రర్ రాకుండా నేరుగా డౌన్ లోడ్ అయ్యే Data URI పద్ధతి
+    let encodedUri = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csvContent);
     let link = document.createElement("a");
-    link.href = url;
+    link.setAttribute("href", encodedUri);
     link.setAttribute("download", fileName);
     document.body.appendChild(link);
     link.click();
     setTimeout(() => {
         document.body.removeChild(link);
-        URL.revokeObjectURL(url);
     }, 200);
 }
 
