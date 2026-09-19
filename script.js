@@ -140,7 +140,7 @@ function renderFarmerCards(filteredData = null) {
                 </div>
             </div>
             <p style="font-size:13px; color:#555; margin: 5px 0;">
-                <strong>Phone:</strong> ${phoneDisplay}
+                <strong>Phone:</strong> ${phoneDisplay} | <strong>Cluster:</strong> ${farmer.cluster || 'N/A'}
             </p>
             <p style="font-size:13px; color:#555; margin: 0;">
                 <strong>Owner ID:</strong> ${farmer.owner || 'N/A'} | 
@@ -310,14 +310,13 @@ function renderTodayHarvestTable() {
 }
 
 // ==========================================
-// 6. CSV & BACKUP DOWNLOADS (APP & BROWSER COMPATIBLE)
+// 6. CSV & BACKUP DOWNLOADS
 // ==========================================
 function downloadHarvestCSV() {
     let startDate = document.getElementById("startDate") ? document.getElementById("startDate").value : "";
     let endDate = document.getElementById("endDate") ? document.getElementById("endDate").value : "";
     
     let csvRows = [];
-    // 9 హెడర్స్ మరియు ఏరియా మేనేజర్ పేరుతో కూడిన పట్టిక
     csvRows.push([
         "S.No", 
         "Cluster No.", 
@@ -347,7 +346,8 @@ function downloadHarvestCSV() {
                         if (endDate && hDate > endDate) matches = false;
 
                         if (matches) {
-                            let clusterNo = farmer.cluster || ''; 
+                            // హార్వెస్ట్ సమయంలో ఎంటర్ చేసిన క్లస్టర్ ఉంటే అది వస్తుంది, లేదంటే రైతు ప్రొఫైల్ లోని క్లస్టర్ వస్తుంది
+                            let clusterNo = h.cluster || farmer.cluster || ''; 
                             let areaManager = "Dr.V.K. Gogireddy"; 
                             let supplierId = farmer.sap || farmer.owner || farmer.supplier || '';
                             let expectedCC = h.weightBridge || '';
@@ -373,14 +373,13 @@ function downloadHarvestCSV() {
     }
 
     if (recordCount === 0) {
-        alert("సెలెక్ట్ చేసిన తేదీలలో రికార్డులు ఏవీ లేవు!");
+        alert("సెలెక్ట్ చేసిన తేదీలలో లేదా హార్వెస్ట్ రికార్డులలో డేటా ఏమీ లేదు!");
         return;
     }
 
     let csvContent = "\uFEFF" + csvRows.join("\n");
     let fileName = startDate && endDate ? `Harvest_${startDate}_to_${endDate}.csv` : 'Harvest_Report.csv';
     
-    // యాప్ మరియు బ్రౌజర్ రెండింటిలోనూ 'bin' ఎర్రర్ రాకుండా నేరుగా డౌన్ లోడ్ అయ్యే Data URI పద్ధతి
     let encodedUri = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csvContent);
     let link = document.createElement("a");
     link.setAttribute("href", encodedUri);
@@ -411,6 +410,8 @@ function editFarmer(fIdx) {
     if (newName === null) return;
     let newPhone = prompt("ఫోన్ నంబర్ (Phone Number):", farmer.phone || "");
     if (newPhone === null) return;
+    let newCluster = prompt("క్లస్టర్ నంబర్ (Cluster No.):", farmer.cluster || "");
+    if (newCluster === null) return;
     let newOwner = prompt("Owner ID:", farmer.owner || "");
     if (newOwner === null) return;
     let newSap = prompt("SAP ID:", farmer.sap || "");
@@ -420,6 +421,7 @@ function editFarmer(fIdx) {
 
     farmers[fIdx].name = newName.trim();
     farmers[fIdx].phone = newPhone.trim();
+    farmers[fIdx].cluster = newCluster.trim();
     farmers[fIdx].owner = newOwner.trim();
     farmers[fIdx].sap = newSap.trim();
     farmers[fIdx].supplier = newSupplierName.trim();
@@ -607,6 +609,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         let rawLandId = String(row['Farmer/Land ID'] || row['Land ID'] || row['భూమి ID'] || '').trim();
                         let area = parseFloat(row['Area Proposed'] || row['Acres'] || row['ఎకరాలు'] || row['Area'] || 0);
                         let phoneNum = String(row['Phone Number'] || row['Phone'] || row['Mobile'] || '').trim();
+                        let clusterNo = String(row['Cluster No'] || row['Cluster'] || row['క్లస్టర్'] || '').trim();
 
                         if (ownerId || sapId || farmerName) {
                             let existingFarmer = null;
@@ -626,6 +629,7 @@ document.addEventListener("DOMContentLoaded", () => {
                                 if (sapId) existingFarmer.sap = sapId;
                                 if (ownerId) existingFarmer.owner = ownerId;
                                 if (supplierName) existingFarmer.supplier = supplierName;
+                                if (clusterNo) existingFarmer.cluster = clusterNo;
                                 
                                 if (phoneNum && phoneNum !== "" && phoneNum !== "undefined" && phoneNum !== "null") {
                                     existingFarmer.phone = phoneNum;
@@ -655,6 +659,7 @@ document.addEventListener("DOMContentLoaded", () => {
                                     owner: ownerId,
                                     sap: sapId,
                                     supplier: supplierName,
+                                    cluster: clusterNo,
                                     phone: (phoneNum !== "undefined" && phoneNum !== "null") ? phoneNum : "",
                                     lands: (rawLandId && rawLandId !== "undefined" && rawLandId !== "null" && rawLandId !== "") ? [{
                                         landId: rawLandId,
@@ -703,6 +708,7 @@ document.addEventListener("DOMContentLoaded", () => {
             let owner = document.getElementById("ownerId").value.trim();
             let sap = document.getElementById("sapId").value.trim();
             let supplier = document.getElementById("supplier").value.trim();
+            let cluster = prompt("క్లస్టర్ నంబర్ (Cluster No.) నమోదు చేయండి:", "") || "";
             let phone = prompt("రైతు ఫోన్ నంబర్ నమోదు చేయండి (Phone Number):", "") || "";
 
             if (!farmerName || farmerName.includes("--")) {
@@ -715,6 +721,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 owner: owner,
                 sap: sap,
                 supplier: supplier,
+                cluster: cluster.trim(),
                 phone: phone.trim(),
                 lands: []
             });
@@ -762,14 +769,25 @@ document.addEventListener("DOMContentLoaded", () => {
                 container.innerHTML = "";
                 
                 if (fIdx !== "" && farmers[fIdx] && farmers[fIdx].lands && farmers[fIdx].lands.length > 0) {
+                    let farmer = farmers[fIdx];
+                    
+                    // హార్వెస్ట్ చేసేటప్పుడు క్లస్టర్ నంబర్ ఎంటర్ చేయడానికి బాక్స్
+                    let clusterDiv = document.createElement("div");
+                    clusterDiv.style.cssText = "background: #fdfefe; padding: 10px; border: 1px solid #ced4da; border-radius: 6px; margin-bottom: 12px; font-size: 13px;";
+                    clusterDiv.innerHTML = `
+                        <label style="font-weight:bold; color:#333; display:block; margin-bottom:5px;">Cluster No. ఎంటర్ చేయండి:</label>
+                        <input type="text" id="harvestClusterInput" value="${farmer.cluster || ''}" placeholder="Enter Cluster No." style="width:100%; padding:6px; font-size:13px; border:1px solid #ccc; border-radius:4px;">
+                    `;
+                    container.appendChild(clusterDiv);
+
                     let selectAllDiv = document.createElement("div");
                     selectAllDiv.style.cssText = "padding: 8px 0; border-bottom: 2px solid #007bff; font-weight: bold; font-size: 13px; color: #007bff; margin-bottom: 10px;";
                     selectAllDiv.innerHTML = `<label style="cursor:pointer;"><input type="checkbox" id="selectAllLands" style="margin-right: 8px;"> Select All</label>`;
                     container.appendChild(selectAllDiv);
 
                     let landHtmlArr = [];
-                    for (let lIdx = 0; lIdx < farmers[fIdx].lands.length; lIdx++) {
-                        let land = farmers[fIdx].lands[lIdx];
+                    for (let lIdx = 0; lIdx < farmer.lands.length; lIdx++) {
+                        let land = farmer.lands[lIdx];
                         landHtmlArr.push(`
                             <div style="padding: 10px; font-size: 13px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 6px; margin-bottom: 8px;">
                                 <label style="cursor:pointer; font-weight:bold; display:block; margin-bottom: 6px;">
@@ -825,10 +843,18 @@ document.addEventListener("DOMContentLoaded", () => {
             const hDate = document.getElementById("harvestDate") ? document.getElementById("harvestDate").value : new Date().toISOString().split('T')[0];
             const ccSelect = document.getElementById("harvestCC");
             const weightBridge = ccSelect ? ccSelect.value : "";
+            
+            // హార్వెస్ట్ సమయంలో ఎంటర్ చేసిన క్లస్టర్ నంబర్‌ను తీసుకోవడం
+            const clusterInput = document.getElementById("harvestClusterInput");
+            const enteredCluster = clusterInput ? clusterInput.value.trim() : "";
 
             if (fIdx === "" || selectedCheckboxes.length === 0) {
                 alert("దయచేసి రైతును మరియు కనీసం ఒక తోటను ఎంచుకోండి!");
                 return;
+            }
+
+            if (enteredCluster) {
+                farmers[fIdx].cluster = enteredCluster;
             }
 
             let savedCount = 0;
@@ -849,6 +875,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         acres: hAcres,
                         tons: parseFloat(hTons) || 0,
                         weightBridge: weightBridge,
+                        cluster: enteredCluster,
                         isHarvestDone: false
                     });
                     savedCount++;
@@ -887,6 +914,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     (f.owner && f.owner.toLowerCase().includes(term)) ||
                     (f.sap && f.sap.toLowerCase().includes(term)) ||
                     (f.phone && f.phone.includes(term)) ||
+                    (f.cluster && f.cluster.toLowerCase().includes(term)) ||
                     (f.supplier && f.supplier.toLowerCase().includes(term))
                 );
                 renderFarmerCards(filtered);
