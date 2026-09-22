@@ -1,5 +1,124 @@
-// 1. LOCAL STORAGE LOAD & SAVE
+// =========================================================
+// OIL PALM HARVESTING MANAGEMENT SYSTEM - FULL SCRIPT (ALPHABETICAL & MODERN UI)
+// =========================================================
+
+// 1. HELPER FUNCTIONS FOR DATES
+function getTodayStr() {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+function parseLocalDate(dateStr) {
+    if (!dateStr) return new Date();
+    let parts = String(dateStr).split('-');
+    if (parts.length === 3) {
+        return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    }
+    return new Date(dateStr);
+}
+
+function normalizeDateStr(dateInput) {
+    if (!dateInput) return getTodayStr();
+    let str = String(dateInput).trim();
+    
+    // Excel Serial Date Number handling
+    if (!isNaN(str) && Number(str) > 30000 && Number(str) < 60000) {
+        let excelDate = new Date((Number(str) - (25567 + 2)) * 86400 * 1000);
+        let y = excelDate.getFullYear();
+        let m = String(excelDate.getMonth() + 1).padStart(2, '0');
+        let d = String(excelDate.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+
+    // Format DD/MM/YYYY or DD-MM-YYYY handling
+    if (str.includes('/') || (str.includes('-') && str.split('-')[0].length !== 4)) {
+        let parts = str.split(/[\/\-]/);
+        if (parts.length === 3) {
+            let d = parts[0].padStart(2, '0');
+            let m = parts[1].padStart(2, '0');
+            let y = parts[2].length === 2 ? '20' + parts[2] : parts[2];
+            return `${y}-${m}-${d}`;
+        }
+    }
+
+    return str;
+}
+
+// 2. LOCAL STORAGE & DATA INITIALIZATION
 let farmers = JSON.parse(localStorage.getItem("nbl_farmers_data")) || JSON.parse(localStorage.getItem("farmersData")) || [];
+
+// FIXED DEDUPLICATION BASED STRICTLY ON 13 OWNER ID
+function cleanupDuplicates() {
+    if (!farmers || farmers.length === 0) return;
+
+    let cleanFarmersList = [];
+
+    farmers.forEach(farmer => {
+        let cleanOwner = String(farmer.owner || '').trim();
+        let cleanName = String(farmer.name || '').trim().toLowerCase();
+
+        let existing = cleanFarmersList.find(f => {
+            let fOwner = String(f.owner || '').trim();
+            if (cleanOwner && fOwner) {
+                return fOwner === cleanOwner;
+            }
+            return cleanName && String(f.name || '').trim().toLowerCase() === cleanName;
+        });
+
+        if (!existing) {
+            existing = {
+                name: farmer.name || 'Unknown Farmer',
+                owner: farmer.owner || '',
+                sap: farmer.sap || '',
+                supplierId: farmer.supplierId || farmer.sap || '',
+                supplier: farmer.supplier || '',
+                phone: farmer.phone || '',
+                cluster: farmer.cluster || '',
+                lands: []
+            };
+            cleanFarmersList.push(existing);
+        } else {
+            if (!existing.phone && farmer.phone) existing.phone = farmer.phone;
+            if (!existing.cluster && farmer.cluster) existing.cluster = farmer.cluster;
+            if (!existing.supplier && farmer.supplier) existing.supplier = farmer.supplier;
+            if (!existing.supplierId && (farmer.supplierId || farmer.sap)) existing.supplierId = farmer.supplierId || farmer.sap;
+        }
+
+        if (farmer.lands && Array.isArray(farmer.lands)) {
+            farmer.lands.forEach(land => {
+                let cleanLandId = String(land.landId || '').trim();
+                if (!cleanLandId) return;
+
+                let existingLand = existing.lands.find(l => String(l.landId || '').trim() === cleanLandId);
+                if (!existingLand) {
+                    existingLand = {
+                        landId: land.landId,
+                        cluster: land.cluster || farmer.cluster || '',
+                        area: parseFloat(land.area) || 0,
+                        history: []
+                    };
+                    existing.lands.push(existingLand);
+                } else {
+                    if (land.area > 0) existingLand.area = parseFloat(land.area);
+                }
+
+                if (land.history && Array.isArray(land.history)) {
+                    land.history.forEach(h => {
+                        let isDupH = existingLand.history.some(exH => exH.date === h.date && parseFloat(exH.tons) === parseFloat(h.tons));
+                        if (!isDupH) {
+                            existingLand.history.push(h);
+                        }
+                    });
+                }
+            });
+        }
+    });
+
+    farmers = cleanFarmersList;
+}
 
 // Fast Search Memory Index Map
 let farmerSearchMap = new Map();
@@ -7,7 +126,8 @@ let farmerSearchMap = new Map();
 function buildSearchIndex() {
     farmerSearchMap.clear();
     farmers.forEach((farmer, idx) => {
-        let key = `${farmer.name || ''} ${farmer.owner || ''} ${farmer.sap || ''} ${farmer.phone || ''} ${farmer.supplierId || ''} ${farmer.supplier || ''} ${farmer.cluster || ''}`.toLowerCase();
+        let landIds = (farmer.lands || []).map(l => l.landId || '').join(' ');
+        let key = `${farmer.name || ''} ${farmer.owner || ''} ${farmer.sap || ''} ${farmer.phone || ''} ${farmer.supplierId || ''} ${farmer.supplier || ''} ${farmer.cluster || ''} ${landIds}`.toLowerCase();
         farmerSearchMap.set(idx, key);
     });
 }
@@ -18,19 +138,18 @@ function saveData() {
         localStorage.setItem("nbl_farmers_data", dataStr);
         localStorage.setItem("farmersData", dataStr);
     } catch (e) {
-        console.error("LocalStorage save error:", e);
+        console.error("LocalStorage Save Error:", e);
     }
     
     buildSearchIndex();
     updateDashboard();
     populateFarmerDropdowns();
-    updateFarmerNameSelectDropdown();
     renderHarvestedTable();
     renderTodayHarvestTable();
     renderFarmerCards();
 }
 
-// 2. DASHBOARD UPDATE
+// 3. DASHBOARD UPDATE
 function updateDashboard() {
     let totalLands = 0;
     let totalHarvests = 0;
@@ -38,13 +157,13 @@ function updateDashboard() {
     let todayHarvestCount = 0;
     let todayTonsSum = 0;
 
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getTodayStr();
 
     farmers.forEach(farmer => {
-        if (farmer.lands) {
+        if (farmer.lands && Array.isArray(farmer.lands)) {
             totalLands += farmer.lands.length;
             farmer.lands.forEach(land => {
-                if (land.history) {
+                if (land.history && Array.isArray(land.history)) {
                     totalHarvests += land.history.length;
                     land.history.forEach(h => {
                         let t = parseFloat(h.tons) || 0;
@@ -72,86 +191,106 @@ function updateDashboard() {
     if (todayHarvestCountEl) todayHarvestCountEl.innerText = `${todayHarvestCount} (${todayTonsSum.toFixed(2)} Tons)`;
 }
 
-// 3. DROPDOWNS & WEIGHT BRIDGES
+// 4. DROPDOWNS POPULATION
 function populateFarmerDropdowns() {
     const farmerSelect = document.getElementById("farmerSelect");
     const harvestFarmer = document.getElementById("harvestFarmer");
 
-    let optionsHtml = '<option value="">Select Farmer</option>';
+    let currentFarmerVal = farmerSelect ? farmerSelect.value : "";
+    let currentHarvestVal = harvestFarmer ? harvestFarmer.value : "";
+
+    let optionsHtml = '<option value="">-- రైతును ఎంచుకోండి (Select Farmer) --</option>';
     farmers.forEach((farmer, idx) => {
-        let displayId = farmer.owner || farmer.sap || '';
+        let displayId = farmer.owner || farmer.sap || farmer.supplierId || 'ID:N/A';
         optionsHtml += `<option value="${idx}">${displayId} - ${farmer.name}</option>`;
     });
 
-    if (farmerSelect) farmerSelect.innerHTML = optionsHtml;
-    if (harvestFarmer) harvestFarmer.innerHTML = optionsHtml;
-}
-
-function updateFarmerNameSelectDropdown() {
-    const selectEl = document.getElementById("farmerNameSelect");
-    if (selectEl) {
-        let optionsHtml = '<option value="">-- Select Farmer --</option>';
-        farmers.forEach(farmer => {
-            let displayId = farmer.owner || farmer.sap || '';
-            optionsHtml += `<option value="${displayId}">${displayId} - ${farmer.name}</option>`;
-        });
-        selectEl.innerHTML = optionsHtml;
+    if (farmerSelect) {
+        farmerSelect.innerHTML = optionsHtml;
+        if (currentFarmerVal !== "" && currentFarmerVal < farmers.length) {
+            farmerSelect.value = currentFarmerVal;
+        }
+    }
+    if (harvestFarmer) {
+        harvestFarmer.innerHTML = optionsHtml;
+        if (currentHarvestVal !== "" && currentHarvestVal < farmers.length) {
+            harvestFarmer.value = currentHarvestVal;
+        }
     }
 }
 
-// 4. RENDER FARMER CARDS
+// 5. RENDER FARMER CARDS (Alphabetical Order & Modern UI Style)
 function renderFarmerCards(filteredData = null) {
     const list = document.getElementById("farmerList");
     if (!list) return;
 
-    let dataToRender = filteredData ? filteredData : farmers;
+    let dataToRender = filteredData ? [...filteredData] : [...farmers];
 
     if (dataToRender.length === 0) {
-        list.innerHTML = `<p style="text-align:center; color:#888;">రైతు వివరాలు ఏమీ లేవు.</p>`;
+        list.innerHTML = `<div style="text-align:center; color:#888; padding:30px; background:#fff; border-radius:10px; border:1px dashed #ccc;">రైతు వివరాలు ఏమీ లేవు.</div>`;
         return;
     }
+
+    // Sort alphabetically by name (A to Z)
+    dataToRender.sort((a, b) => {
+        let nameA = (a.name || "").trim().toLowerCase();
+        let nameB = (b.name || "").trim().toLowerCase();
+        return nameA.localeCompare(nameB);
+    });
 
     let fragment = document.createDocumentFragment();
 
     dataToRender.forEach((farmer) => {
         let fIdx = farmers.indexOf(farmer);
-        let phoneDisplay = farmer.phone ? `<a href="tel:${farmer.phone}" style="color:#28a745; text-decoration:none; font-weight:bold;">📞 ${farmer.phone}</a>` : '<span style="color:#888;">Phone N/A</span>';
+        let phoneDisplay = farmer.phone 
+            ? `<a href="tel:${farmer.phone}" style="color:#0d6efd; text-decoration:none; font-weight:600;">📞 ${farmer.phone}</a>` 
+            : '<span style="color:#adb5bd;">N/A</span>';
 
         let cardContainer = document.createElement("div");
-        cardContainer.style.cssText = "background:#fff; border:1px solid #ddd; border-radius:8px; margin-bottom:15px; padding:15px; box-shadow:0 2px 5px rgba(0,0,0,0.05);";
+        cardContainer.style.cssText = "background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; margin-bottom:16px; padding:16px; box-shadow:0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03); transition:all 0.3s ease;";
 
         let cardHeaderHtml = `
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <h3 style="margin:0 0 5px 0; color:#333;">${farmer.name}</h3>
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; border-bottom:1px solid #f1f5f9; padding-bottom:10px; margin-bottom:10px;">
                 <div>
-                    <button onclick="viewFarmerFullHistory(${fIdx})" style="background:#17a2b8; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; margin-right:5px; font-size:11px;">History</button>
-                    <button onclick="editFarmer(${fIdx})" style="background:#007bff; color:white; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:11px; font-weight:bold;">✏️ Edit</button>
-                    <button onclick="deleteFarmer(${fIdx})" style="background:#ffebee; color:#d32f2f; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">Delete</button>
+                    <h3 style="margin:0 0 4px 0; color:#1e293b; font-size:17px; font-weight:700;">🏝️ ${farmer.name}</h3>
+                    <div style="font-size:12px; color:#64748b; font-weight:500;">
+                        <span>Owner ID: <strong style="color:#334155;">${farmer.owner || 'N/A'}</strong></span> | 
+                        <span>Cluster: <strong style="color:#334155;">${farmer.cluster || 'N/A'}</strong></span>
+                        
+                    </div>
+                </div>
+                <div style="display:flex; gap:6px;">
+                    <button onclick="viewFarmerFullHistory(${fIdx})" title="History" style="background:#0ea5e9; color:white; border:none; padding:6px 10px; border-radius:6px; cursor:pointer; font-size:12px; font-weight:600;">📜 History</button>
+                    <button onclick="editFarmer(${fIdx})" title="Edit" style="background:#3b82f6; color:white; border:none; padding:6px 10px; border-radius:6px; cursor:pointer; font-size:12px; font-weight:600;">✏️ Edit</button>
+                    <button onclick="deleteFarmer(${fIdx})" title="Delete" style="background:#ef4444; color:white; border:none; padding:6px 10px; border-radius:6px; cursor:pointer; font-size:12px; font-weight:600;">🗑️</button>
                 </div>
             </div>
-            <p style="font-size:13px; color:#555; margin: 5px 0;">
-                <strong>Phone:</strong> ${phoneDisplay} | 
-                <strong>Cluster No:</strong> ${farmer.cluster || 'N/A'}
-            </p>
-            <p style="font-size:13px; color:#555; margin: 0;">
-                <strong>Owner ID:</strong> ${farmer.owner || 'N/A'} | 
-                <strong>SAP / Supplier ID:</strong> ${farmer.supplierId || farmer.sap || 'N/A'} | 
-                <strong>Supplier Name:</strong> ${farmer.supplier || 'N/A'}
-            </p>`;
+            
+            <div style="background:#f8fafc; padding:8px 12px; border-radius:8px; font-size:12px; color:#475569; margin-bottom:10px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+                <div><strong>Phone:</strong> ${phoneDisplay}</div>
+                <div><strong>Supplier ID:</strong> ${farmer.supplierId || farmer.sap || 'N/A'}</div>
+                <div><strong>Supplier Name:</strong> ${farmer.supplier || 'N/A'}</div>
+            </div>`;
 
         if (farmer.lands && farmer.lands.length > 0) {
+            cardHeaderHtml += `<div style="font-size:12px; font-weight:600; color:#334155; margin-bottom:6px;">మొత్తం తోటలు (Lands):</div>`;
             farmer.lands.forEach((land, lIdx) => {
+                let historyCount = (land.history && land.history.length) ? land.history.length : 0;
                 cardHeaderHtml += `
-                <div style="background:#f9f9f9; border-left:3px solid #4CAF50; padding:10px; margin-top:8px; border-radius:4px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <span><strong>Land ID:</strong> ${land.landId} (${land.area} Acres)</span>
-                        <div>
-                            <button onclick="selectFarmerForHarvest(${fIdx}, ${lIdx})" style="background:#e8f5e9; color:#2e7d32; border:1px solid #a5d6a7; padding:3px 8px; border-radius:4px; cursor:pointer; font-size:12px; margin-right:5px;">🏝️ Harvester</button>
-                            <button onclick="deleteLand(${fIdx}, ${lIdx})" style="font-size:11px; background:#ffebee; color:#d32f2f; border:none; padding:3px 6px; cursor:pointer;">Delete</button>
-                        </div>
+                <div style="background:#ffffff; border:1px solid #e2e8f0; border-left:4px solid #10b981; padding:8px 12px; margin-top:6px; border-radius:6px; font-size:12px; display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <strong style="color:#0f172a;">Land ID: <span style="color:#2563eb;">${land.landId}</span></strong> 
+                        <span style="color:#64748b; margin-left:8px;">(${land.area} ఎకరాలు)</span>
+                        <div style="color:#059669; font-size:11px; margin-top:2px;">హార్వెస్ట్‌లు: ${historyCount} రికార్డులు</div>
+                    </div>
+                    <div style="display:flex; gap:6px;">
+                        <button onclick="selectFarmerForHarvest(${fIdx}, ${lIdx})" style="background:#d1fae5; color:#065f46; border:1px solid #10b981; padding:4px 8px; border-radius:6px; cursor:pointer; font-size:11px; font-weight:700;">🏝️Harvest</button>
+                        <button onclick="deleteLand(${fIdx}, ${lIdx})" style="background:#fee2e2; color:#991b1b; border:1px solid #f87171; padding:4px 6px; border-radius:6px; cursor:pointer; font-size:11px;">🗑️</button>
                     </div>
                 </div>`;
             });
+        } else {
+            cardHeaderHtml += `<div style="font-size:12px; color:#94a3b8; font-style:italic; padding:4px 0;">(ఈ రైతుకి భూమి వివరాలు నమోదు కాలేదు)</div>`;
         }
 
         cardContainer.innerHTML = cardHeaderHtml;
@@ -162,7 +301,7 @@ function renderFarmerCards(filteredData = null) {
     list.appendChild(fragment);
 }
 
-// 5. 10 DAYS HARVEST REMINDER & POPUP
+// 6. 10 DAYS HARVEST REMINDER & POPUP
 function renderHarvestedTable() {
     const popupContent = document.getElementById("harvestPopupContent");
     const badgeCount = document.getElementById("harvestBadgeCount");
@@ -170,32 +309,34 @@ function renderHarvestedTable() {
 
     popupContent.innerHTML = "";
     let harvestItems = [];
-    const today = new Date();
+    const today = parseLocalDate(getTodayStr());
     today.setHours(0, 0, 0, 0);
 
     farmers.forEach((farmer, fIdx) => {
-        if (farmer.lands) {
+        if (farmer.lands && Array.isArray(farmer.lands)) {
             farmer.lands.forEach((land, lIdx) => {
-                if (land.history) {
-                    land.history.forEach((h, hIdx) => {
-                        if (h.date && !h.isHarvestDone) {
-                            let harvestDate = new Date(h.date);
-                            harvestDate.setHours(0, 0, 0, 0);
-                            let diffDays = Math.floor((today - harvestDate) / (1000 * 60 * 60 * 24));
-                            
-                            if (diffDays >= 10) {
-                                harvestItems.push({
-                                    fIdx, lIdx, hIdx,
-                                    farmerName: farmer.name,
-                                    sapId: farmer.owner || farmer.sap || '-',
-                                    landId: land.landId,
-                                    date: h.date,
-                                    tons: h.tons || 0,
-                                    days: diffDays
-                                });
-                            }
+                if (land.history && land.history.length > 0) {
+                    let sortedHistory = [...land.history].sort((a, b) => parseLocalDate(b.date) - parseLocalDate(a.date));
+                    let latestHarvest = sortedHistory[0];
+
+                    if (latestHarvest && latestHarvest.date && !latestHarvest.isHarvestDone) {
+                        let harvestDate = parseLocalDate(latestHarvest.date);
+                        harvestDate.setHours(0, 0, 0, 0);
+                        let diffDays = Math.floor((today - harvestDate) / (1000 * 60 * 60 * 24));
+
+                        if (diffDays >= 10) {
+                            let originalHIdx = land.history.indexOf(latestHarvest);
+                            harvestItems.push({
+                                fIdx, lIdx, hIdx: originalHIdx,
+                                farmerName: farmer.name,
+                                sapId: farmer.owner || farmer.sap || farmer.supplierId || '-',
+                                landId: land.landId,
+                                date: latestHarvest.date,
+                                tons: latestHarvest.tons || 0,
+                                days: diffDays
+                            });
                         }
-                    });
+                    }
                 }
             });
         }
@@ -204,40 +345,27 @@ function renderHarvestedTable() {
     badgeCount.innerText = harvestItems.length;
 
     if (harvestItems.length === 0) {
-        popupContent.innerHTML = `<div style="text-align:center; color:#888; padding:20px; font-size:13px;">10 రోజులు దాటిన తోటల అలర్ట్‌లు ఏవీ లేవు</div>`;
+        popupContent.innerHTML = `<div style="text-align:center; color:#888; padding:20px; font-size:13px;">10 రోజులు దాటిన తోటల అలర్ట్‌లు ఏవీ లేవు. 👍</div>`;
         return;
     }
 
-    let groupedByDate = {};
-    harvestItems.forEach(item => {
+    harvestItems.sort((a, b) => b.days - a.days);
+
+    harvestItems.forEach((item, index) => {
         let parts = item.date.split('-');
         let displayDate = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : item.date;
-        
-        if (!groupedByDate[displayDate]) {
-            groupedByDate[displayDate] = [];
-        }
-        groupedByDate[displayDate].push(item);
-    });
 
-    Object.keys(groupedByDate).sort().forEach(dateKey => {
-        let dateHeader = document.createElement("div");
-        dateHeader.style.cssText = "background: #e9ecef; color: #333; padding: 6px 10px; font-weight: bold; font-size: 13px; margin-top: 8px; border-radius: 4px;";
-        dateHeader.innerText = `📅 తేదీ: ${dateKey}`;
-        popupContent.appendChild(dateHeader);
-
-        groupedByDate[dateKey].forEach((item, index) => {
-            let div = document.createElement("div");
-            div.style.cssText = "padding: 10px 12px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; font-size: 12px;";
-            div.innerHTML = `
-                <div>
-                    <strong style="color: #333; font-size:13px;">${index + 1}. ${item.farmerName}</strong><br>
-                    <span style="color: #555; display:inline-block; margin-left:14px;">Owner ID: ${item.sapId} | Land: ${item.landId}</span><br>
-                    <span style="color: #d32f2f; font-weight:bold; display:inline-block; margin-left:14px;">(${item.days} రోజులు పూర్తయ్యాయి)</span>
-                </div>
-                <button onclick="markHarvestDone(${item.fIdx}, ${item.lIdx}, ${item.hIdx})" style="background:#28a745; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:11px; font-weight:bold;">Done</button>
-            `;
-            popupContent.appendChild(div);
-        });
+        let div = document.createElement("div");
+        div.style.cssText = "padding: 10px 12px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; font-size: 12px;";
+        div.innerHTML = `
+            <div>
+                <strong style="color: #333; font-size:13px;">${index + 1}. ${item.farmerName}</strong><br>
+                <span style="color: #555;">Owner/SAP ID: ${item.sapId} | Land ID: <b>${item.landId}</b></span><br>
+                <span style="color: #d32f2f; font-weight:bold;">చివరి హార్వెస్ట్: ${displayDate} (${item.days} రోజులు పూర్తయ్యాయి)</span>
+            </div>
+            <button onclick="markHarvestDone(${item.fIdx}, ${item.lIdx}, ${item.hIdx})" style="background:#28a745; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:11px; font-weight:bold;">Done</button>
+        `;
+        popupContent.appendChild(div);
     });
 }
 
@@ -251,16 +379,19 @@ function toggleHarvestPopup() {
 }
 
 function markHarvestDone(fIdx, lIdx, hIdx) {
-    farmers[fIdx].lands[lIdx].history[hIdx].isHarvestDone = true;
-    saveData();
-    renderHarvestedTable();
+    if (farmers[fIdx] && farmers[fIdx].lands[lIdx] && farmers[fIdx].lands[lIdx].history[hIdx]) {
+        farmers[fIdx].lands[lIdx].history[hIdx].isHarvestDone = true;
+        saveData();
+        renderHarvestedTable();
+    }
 }
 
+// 7. TODAY HARVEST POPUP
 function toggleTodayHarvestPopup() {
     const modal = document.getElementById("todayHarvestPopupModal");
     if (modal) {
-        let isVisible = modal.style.display === "flex";
-        modal.style.display = isVisible ? "none" : "flex";
+        let isVisible = modal.style.display === "block" || modal.style.display === "flex";
+        modal.style.display = isVisible ? "none" : "block";
         if (!isVisible) renderTodayHarvestTable();
     }
 }
@@ -272,7 +403,7 @@ function renderTodayHarvestTable() {
 
     popupContent.innerHTML = "";
     let harvestItems = [];
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getTodayStr();
 
     farmers.forEach((farmer) => {
         if (farmer.lands) {
@@ -280,7 +411,15 @@ function renderTodayHarvestTable() {
                 if (land.history) {
                     land.history.forEach((h) => {
                         if (h.date === todayStr) {
-                            harvestItems.push({ farmerName: farmer.name, sapId: farmer.owner || farmer.sap || '-', landId: land.landId, date: h.date, tons: h.tons || 0, acres: h.acres || 0 });
+                            harvestItems.push({ 
+                                farmerName: farmer.name, 
+                                sapId: farmer.owner || farmer.sap || farmer.supplierId || '-', 
+                                landId: land.landId, 
+                                date: h.date, 
+                                tons: h.tons || 0, 
+                                acres: h.acres || 0,
+                                weightBridge: h.weightBridge || '-'
+                            });
                         }
                     });
                 }
@@ -290,18 +429,18 @@ function renderTodayHarvestTable() {
 
     if (badgeCount) badgeCount.innerText = harvestItems.length;
     if (harvestItems.length === 0) {
-        popupContent.innerHTML = `<div style="text-align:center; color:#888; padding:15px; font-size:13px;">ఈరోజు హార్వెస్ట్ రికార్డులు లేవు</div>`;
+        popupContent.innerHTML = `<div style="text-align:center; color:#888; padding:15px; font-size:13px;">ఈరోజు హార్వెస్ట్ రికార్డులు ఏవీ నమోదు కాలేదు.</div>`;
         return;
     }
 
-    harvestItems.forEach(item => {
+    harvestItems.forEach((item, idx) => {
         let div = document.createElement("div");
-        div.style.cssText = "padding: 10px; border-bottom: 1px solid #f1f1f1; display: flex; justify-content: space-between; align-items: center; font-size: 12px;";
+        div.style.cssText = "padding: 8px 10px; border-bottom: 1px solid #f1f1f1; display: flex; justify-content: space-between; align-items: center; font-size: 12px;";
         div.innerHTML = `
             <div>
-                <strong style="color: #333; font-size:13px;">${item.farmerName}</strong><br>
-                <span style="color: #666;">Owner ID: ${item.sapId} | Land: ${item.landId}</span><br>
-                <span style="color: #28a745; font-weight:bold;">ఎకరాలు: ${item.acres} | టన్స్: ${item.tons} Tons</span>
+                <strong style="color: #333; font-size:13px;">${idx + 1}. ${item.farmerName}</strong><br>
+                <span style="color: #666;">Owner ID: ${item.sapId} | Land: ${item.landId} | CC: ${item.weightBridge}</span><br>
+                <span style="color: #28a745; font-weight:bold;">ఎకరాలు: ${item.acres} | టన్స్: ${item.tons} T</span>
             </div>
             <span style="background:#e8f5e9; color:#2e7d32; padding:3px 6px; border-radius:4px; font-size:11px; font-weight:bold;">ఈరోజే</span>
         `;
@@ -309,7 +448,7 @@ function renderTodayHarvestTable() {
     });
 }
 
-// 6. EXCEL / CSV DOWNLOAD & BACKUP
+// 8. CSV / EXCEL EXPORT & BACKUP
 function downloadCSVFile(csvContent, fileName) {
     let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     let url = URL.createObjectURL(blob);
@@ -329,13 +468,13 @@ function downloadHarvestCSV() {
     let endDate = document.getElementById("endDate") ? document.getElementById("endDate").value : "";
     
     let csvRows = [];
-    
     csvRows.push([
         "S.No", 
         "Cluster No.", 
         "Area Manager", 
         "Land ID", 
         "Owner Name", 
+        "Harvest Date",
         "No. of Acres Harvesting", 
         "Estimated Tons", 
         "Supplier ID", 
@@ -345,15 +484,12 @@ function downloadHarvestCSV() {
     let recordCount = 0;
     let serialNo = 1;
 
-    for (let i = 0; i < farmers.length; i++) {
-        let farmer = farmers[i];
+    farmers.forEach(farmer => {
         if (farmer.lands) {
-            for (let j = 0; j < farmer.lands.length; j++) {
-                let land = farmer.lands[j];
+            farmer.lands.forEach(land => {
                 if (land.history) {
-                    for (let k = 0; k < land.history.length; k++) {
-                        let h = land.history[k];
-                        let hDate = h.date;
+                    land.history.forEach(h => {
+                        let hDate = normalizeDateStr(h.date);
                         let matches = true;
                         
                         if (startDate && hDate < startDate) matches = false;
@@ -362,9 +498,7 @@ function downloadHarvestCSV() {
                         if (matches) {
                             let clusterNo = farmer.cluster || land.cluster || ''; 
                             let areaManager = "Dr.V.K. Gogireddy"; 
-
-                            // Supplier ID (1600... ID ki pradhanyatha)
-                            let supplierId = farmer.supplierId || farmer.sap || farmer.supplier || farmer.owner || '';
+                            let supplierId = farmer.supplierId || farmer.sap || farmer.owner || '';
                             let expectedCC = h.weightBridge || '';
 
                             csvRows.push([
@@ -373,6 +507,7 @@ function downloadHarvestCSV() {
                                 areaManager,
                                 land.landId || '',
                                 farmer.name || '',
+                                hDate || '',
                                 h.acres || land.area || '',
                                 h.tons || '',
                                 supplierId,
@@ -381,63 +516,54 @@ function downloadHarvestCSV() {
 
                             recordCount++;
                         }
-                    }
+                    });
                 }
-            }
+            });
         }
-    }
+    });
 
     if (recordCount === 0) {
-        alert("సెలెక్ట్ చేసిన తేదీలలో రికార్డులు ఏవీ లేవు!");
+        alert("సెలెక్ట్ చేసిన తేదీలలో ఎలాంటి హార్వెస్ట్ రికార్డులు లేవు!");
         return;
     }
 
     let csvContent = "\uFEFF" + csvRows.join("\n");
     let fileName = (startDate && endDate) 
-        ? `Harvest_${startDate}_to_${endDate}.csv` 
-        : `Harvest_Report.csv`;
+        ? `Harvest_Report_${startDate}_to_${endDate}.csv` 
+        : `Harvest_Report_All.csv`;
     
     downloadCSVFile(csvContent, fileName);
 }
 
 function exportDataToExcel() {
-    let dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(farmers));
+    if (!farmers || farmers.length === 0) {
+        alert("ఎగుమతి చేయడానికి ఎలాంటి డేటా లేదు!");
+        return;
+    }
+    let todayStr = getTodayStr();
+    let dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(farmers, null, 2));
     let dlAnchorElem = document.createElement('a');
     dlAnchorElem.setAttribute("href", dataStr);
-    dlAnchorElem.setAttribute("download", "oil_palm_backup.json");
+    dlAnchorElem.setAttribute("download", `oil_palm_backup_${todayStr}.json`);
     document.body.appendChild(dlAnchorElem);
     dlAnchorElem.click();
     dlAnchorElem.remove();
 }
 
-function importDataFromJSON(event) {
-    let file = event.target.files[0];
-    if (!file) return;
-    let reader = new FileReader();
-    reader.onload = function(e) {
-        try {
-            farmers = JSON.parse(e.target.result);
-            saveData();
-            alert("బ్యాకప్ విజయవంతంగా ఇంపోర్ట్ చేయబడింది!");
-        } catch (err) {
-            alert("ఫైల్ చదవడం లో లోపం ఏర్పడింది!");
-        }
-    };
-    reader.readAsText(file);
-}
-
-// 7. EDIT, DELETE & HISTORY ACTIONS
+// 9. EDIT / DELETE FARMER & HISTORY
 function editFarmer(fIdx) {
     const farmer = farmers[fIdx];
-    let newName = prompt("రైతు పేరు:", farmer.name || "");
-    if (newName === null) return;
+    if (!farmer) return;
+
+    let newName = prompt("రైతు పేరు (Farmer Name):", farmer.name || "");
+    if (newName === null || !newName.trim()) return;
     let newPhone = prompt("ఫోన్ నంబర్ (Phone Number):", farmer.phone || "");
     if (newPhone === null) return;
     let newCluster = prompt("Cluster No.:", farmer.cluster || "");
     if (newCluster === null) return;
     let newOwner = prompt("Owner ID:", farmer.owner || "");
     if (newOwner === null) return;
-    let newSupplierId = prompt("Supplier ID (1600...):", farmer.supplierId || farmer.sap || "");
+    let newSupplierId = prompt("Supplier ID / SAP ID:", farmer.supplierId || farmer.sap || "");
     if (newSupplierId === null) return;
     let newSupplierName = prompt("Supplier Name:", farmer.supplier || "");
     if (newSupplierName === null) return;
@@ -449,18 +575,19 @@ function editFarmer(fIdx) {
     farmers[fIdx].supplierId = newSupplierId.trim();
     farmers[fIdx].sap = newSupplierId.trim();
     farmers[fIdx].supplier = newSupplierName.trim();
+
     saveData();
 }
 
 function deleteFarmer(fIdx) {
-    if (confirm("ఈ రైతును డిలీట్ చేయాలా?")) {
+    if (confirm(`మీరు ఖచ్చితంగా '${farmers[fIdx].name}' రైతు వివరాలను డిలీట్ చేయాలనుకుంటున్నారా?`)) {
         farmers.splice(fIdx, 1);
         saveData();
     }
 }
 
 function deleteLand(fIdx, lIdx) {
-    if (confirm("ఈ భూమిని డిలీట్ చేయాలా?")) {
+    if (confirm("ఈ భూమి మరియు దాని హార్వెస్ట్ హిస్టరీని డిలీట్ చేయాలా?")) {
         farmers[fIdx].lands.splice(lIdx, 1);
         saveData();
     }
@@ -468,24 +595,26 @@ function deleteLand(fIdx, lIdx) {
 
 function viewFarmerFullHistory(farmerIndex) {
     let farmer = farmers[farmerIndex];
+    if (!farmer) return;
+
     let modal = document.getElementById("historyPopupModal");
     if (!modal) {
         modal = document.createElement("div");
         modal.id = "historyPopupModal";
         modal.style.cssText = "display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:2000; justify-content:center; align-items:center;";
         modal.innerHTML = `
-            <div style="background:white; width:90%; max-width:480px; padding:20px; border-radius:8px; box-shadow:0 4px 10px rgba(0,0,0,0.2); position:relative; max-height:80vh; display:flex; flex-direction:column;">
-                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee; padding-bottom:10px;">
+            <div style="background:white; width:92%; max-width:500px; padding:18px; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.2); position:relative; max-height:85vh; display:flex; flex-direction:column;">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee; padding-bottom:8px;">
                     <h3 id="historyModalTitle" style="margin:0; font-size:16px; color:#333;">History</h3>
-                    <button onclick="closeHistoryPopup()" style="background:none; border:none; font-size:18px; cursor:pointer; color:#888;">✕</button>
+                    <button onclick="closeHistoryPopup()" style="background:none; border:none; font-size:20px; cursor:pointer; color:#888;">✕</button>
                 </div>
-                <div id="historyModalBody" style="overflow-y:auto; margin-top:15px; font-size:13px; flex-grow:1;"></div>
+                <div id="historyModalBody" style="overflow-y:auto; margin-top:12px; font-size:13px; flex-grow:1;"></div>
             </div>
         `;
         document.body.appendChild(modal);
     }
 
-    document.getElementById("historyModalTitle").innerText = `${farmer.name} హిస్టరీ`;
+    document.getElementById("historyModalTitle").innerText = `${farmer.name} - హార్వెస్ట్ హిస్టరీ`;
     let bodyDiv = document.getElementById("historyModalBody");
     bodyDiv.innerHTML = "";
 
@@ -496,9 +625,9 @@ function viewFarmerFullHistory(farmerIndex) {
             if (land.history && land.history.length > 0) {
                 hasHistory = true;
                 htmlContent += `
-                    <div style="font-weight:bold; color:#007bff; margin-top:10px;">Land ID: ${land.landId}</div>
+                    <div style="font-weight:bold; color:#007bff; margin-top:10px; background:#eef7ff; padding:4px 8px; border-radius:4px;">Land ID: ${land.landId} (${land.area} ఎకరాలు)</div>
                     <table style="width:100%; border-collapse:collapse; font-size:12px; margin-bottom:10px; margin-top:5px;">
-                        <thead><tr style="background:#f1f1f1;"><th style="border:1px solid #ddd; padding:4px;">తేదీ</th><th style="border:1px solid #ddd; padding:4px;">ఎకరాలు</th><th style="border:1px solid #ddd; padding:4px;">టన్స్</th><th style="border:1px solid #ddd; padding:4px;">Actions</th></tr></thead>
+                        <thead><tr style="background:#f1f1f1;"><th style="border:1px solid #ddd; padding:4px;">తేదీ</th><th style="border:1px solid #ddd; padding:4px;">ఎకరాలు</th><th style="border:1px solid #ddd; padding:4px;">టన్స్</th><th style="border:1px solid #ddd; padding:4px;">CC</th><th style="border:1px solid #ddd; padding:4px;">చర్యలు</th></tr></thead>
                         <tbody>`;
                 land.history.forEach((h, hIdx) => {
                     htmlContent += `
@@ -506,9 +635,10 @@ function viewFarmerFullHistory(farmerIndex) {
                             <td style="border:1px solid #ddd; padding:4px; text-align:center;">${h.date || '-'}</td>
                             <td style="border:1px solid #ddd; padding:4px; text-align:center;">${h.acres || '-'}</td>
                             <td style="border:1px solid #ddd; padding:4px; text-align:center; font-weight:bold; color:#28a745;">${h.tons || '0'} T</td>
+                            <td style="border:1px solid #ddd; padding:4px; text-align:center;">${h.weightBridge || '-'}</td>
                             <td style="border:1px solid #ddd; padding:4px; text-align:center;">
-                                <button onclick="editHarvest(${farmerIndex}, ${lIdx}, ${hIdx})" style="background:#e3f2fd; color:#0d6efd; border:none; padding:2px 5px; border-radius:3px; cursor:pointer; margin-right:3px;">✏️</button>
-                                <button onclick="deleteHarvest(${farmerIndex}, ${lIdx}, ${hIdx})" style="background:#ffebee; color:#d32f2f; border:none; padding:2px 5px; border-radius:3px; cursor:pointer;">Del</button>
+                                <button onclick="editHarvest(${farmerIndex}, ${lIdx}, ${hIdx})" style="background:#e3f2fd; color:#0d6efd; border:none; padding:2px 5px; border-radius:3px; cursor:pointer;">✏️</button>
+                                <button onclick="deleteHarvest(${farmerIndex}, ${lIdx}, ${hIdx})" style="background:#ffebee; color:#d32f2f; border:none; padding:2px 5px; border-radius:3px; cursor:pointer;">🗑️</button>
                             </td>
                         </tr>`;
                 });
@@ -519,24 +649,26 @@ function viewFarmerFullHistory(farmerIndex) {
     }
 
     if (!hasHistory) {
-        bodyDiv.innerHTML = `<div style="text-align:center; color:#888; padding:20px;">హిస్టరీ రికార్డులు ఏవీ లేవు</div>`;
+        bodyDiv.innerHTML = `<div style="text-align:center; color:#888; padding:20px;">ఈ రైతుకు గత హార్వెస్ట్ రికార్డులు ఏవీ లేవు.</div>`;
     }
 
     modal.style.display = "flex";
 }
 
 function editHarvest(fIdx, lIdx, hIdx) {
-    let currentTons = farmers[fIdx].lands[lIdx].history[hIdx].tons;
-    let currentAcres = farmers[fIdx].lands[lIdx].history[hIdx].acres;
-
-    let newTons = prompt("నూతన టన్నులు (Tons) నమోదు చేయండి:", currentTons);
+    let record = farmers[fIdx].lands[lIdx].history[hIdx];
+    let newTons = prompt("నూతన టన్నులు (Tons) నమోదు చేయండి:", record.tons);
     if (newTons === null) return;
 
-    let newAcres = prompt("నూతన ఎకరాలు (Acres) నమోదు చేయండి:", currentAcres);
+    let newAcres = prompt("నూతన ఎకరాలు (Acres) నమోదు చేయండి:", record.acres);
     if (newAcres === null) return;
+
+    let newDate = prompt("తేదీ (YYYY-MM-DD):", record.date);
+    if (newDate === null) return;
 
     farmers[fIdx].lands[lIdx].history[hIdx].tons = parseFloat(newTons) || 0;
     farmers[fIdx].lands[lIdx].history[hIdx].acres = parseFloat(newAcres) || 0;
+    farmers[fIdx].lands[lIdx].history[hIdx].date = normalizeDateStr(newDate);
 
     saveData();
     viewFarmerFullHistory(fIdx);
@@ -567,21 +699,16 @@ function selectFarmerForHarvest(fIdx, lIdx) {
                 checkbox.checked = true;
                 checkbox.dispatchEvent(new Event('change'));
             }
-        }, 100);
+        }, 120);
 
         harvestFarmer.scrollIntoView({ behavior: 'smooth' });
     }
 }
 
-// 8. DOM LOAD & INIT
+// 10. INITIALIZATION & EVENT LISTENERS
 document.addEventListener("DOMContentLoaded", () => {
-    buildSearchIndex();
-    renderFarmerCards();
-    updateDashboard();
-    populateFarmerDropdowns();
-    updateFarmerNameSelectDropdown();
-    renderHarvestedTable();
-    renderTodayHarvestTable();
+    cleanupDuplicates();
+    saveData();
 
     const importBtn = document.getElementById("importBtn");
     const excelFileInput = document.getElementById("excelFileInput");
@@ -591,6 +718,11 @@ document.addEventListener("DOMContentLoaded", () => {
             let file = excelFileInput.files[0];
             if (!file) {
                 alert("దయచేసి ముందుగా ఒక ఎక్సెల్ లేదా సీఎస్‌వీ ఫైల్‌ని సెలెక్ట్ చేయండి!");
+                return;
+            }
+
+            if (typeof XLSX === "undefined") {
+                alert("XLSX లైబ్రరీ కనుగొనబడలేదు!");
                 return;
             }
 
@@ -608,33 +740,80 @@ document.addEventListener("DOMContentLoaded", () => {
                         return;
                     }
 
-                    let newFarmersMap = new Map();
+                    let addedFarmers = 0;
+                    let updatedFarmers = 0;
+                    let importedHarvests = 0;
+
+                    function getFieldValue(rowObj, possibleNames) {
+                        let keys = Object.keys(rowObj);
+                        for (let p of possibleNames) {
+                            let cleanP = p.toLowerCase().replace(/[^a-z0-9]/g, '');
+                            let matchedKey = keys.find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanP);
+                            if (matchedKey && String(rowObj[matchedKey]).trim() !== '') {
+                                return String(rowObj[matchedKey]).trim();
+                            }
+                        }
+                        return '';
+                    }
 
                     jsonData.forEach(row => {
-                        let clusterNo = String(row['Cluster No.'] || row['Cluster No'] || row['Cluster'] || row['CLUSTER'] || row['క్లస్టర్'] || '').trim();
-
-                        let fLastName = String(row['Owner Last Name'] || row['Surname'] || row['ఇంటి పేరు'] || row['Last Name'] || '').trim();
-                        let fFirstName = String(row['Farm Owner Name'] || row['First Name'] || row['Farmer Name'] || row['పేరు'] || row['Name'] || row['Owner Name'] || '').trim();
+                        let clusterNo = getFieldValue(row, ['Cluster No.', 'Cluster No', 'Cluster', 'CLUSTER', 'క్లస్టర్']);
                         
+                        let fLastName = getFieldValue(row, ['Owner Last Name', 'Surname', 'ఇంటి పేరు', 'Last Name']);
+                        let fFirstName = getFieldValue(row, ['Farm Owner Name', 'First Name', 'Farmer Name', 'పేరు', 'Name', 'Owner Name']);
                         let farmerName = (fLastName && fFirstName) ? `${fLastName} ${fFirstName}` : (fFirstName || fLastName || '');
 
-                        let sLastName = String(row['Supplier Last Name'] || '').trim();
-                        let sFirstName = String(row['Supplier Name'] || '').trim();
+                        let sLastName = getFieldValue(row, ['Supplier Last Name']);
+                        let sFirstName = getFieldValue(row, ['Supplier Name']);
                         let supplierName = (sLastName && sFirstName) ? `${sLastName} ${sFirstName}` : (sFirstName || sLastName || farmerName);
 
-                        let ownerId = String(row['Farmowner ID'] || row['Owner ID'] || '').trim();
-                        let sapId = String(row['SAP ID'] || row['SAP'] || '').trim();
-                        let supplierId = String(row['Supplier ID'] || row['SupplierID'] || '').trim() || sapId;
-                        let landId = String(row['Farmer/Land ID'] || row['Land ID'] || row['భూమి ID'] || '').trim();
-                        let area = row['Area Proposed'] || row['Acres'] || row['ఎకరాలు'] || row['Area'] || row['No. of Acres Harvesting'] || 0;
-                        let phoneNum = String(row['Phone Number'] || row['Phone'] || row['Mobile'] || '').trim();
+                        let ownerId = getFieldValue(row, ['Farmowner ID', 'Owner ID', 'FarmownerID', 'OwnerID']);
+                        let sapId = getFieldValue(row, ['SAP ID', 'SAP', 'SAPID']);
+                        let supplierId = getFieldValue(row, ['Supplier ID', 'SupplierID']) || sapId;
+                        let landId = getFieldValue(row, ['Farmer/Land ID', 'Land ID', 'LandID', 'భూమి ID', 'Plot ID', 'PlotID']);
+                        let area = parseFloat(getFieldValue(row, ['Area Proposed', 'Acres', 'ఎకరాలు', 'Area', 'No. of Acres Harvesting'])) || 0;
+                        let phoneNum = getFieldValue(row, ['Phone Number', 'Phone', 'Mobile', 'Cell']);
 
-                        if (farmerName || landId) {
-                            let key = ownerId ? ownerId : (supplierId ? supplierId : farmerName);
+                        let rawHDate = getFieldValue(row, ['Harvest Date', 'Date', 'తేదీ']);
+                        let hDate = rawHDate ? normalizeDateStr(rawHDate) : '';
+                        let hTons = parseFloat(getFieldValue(row, ['Estimated Tons', 'Tons', 'టన్నులు'])) || 0;
+                        let hAcres = parseFloat(getFieldValue(row, ['No. of Acres Harvesting', 'Harvest Acres'])) || area;
+                        let hWeightBridge = getFieldValue(row, ['Expected CC', 'CC', 'WeightBridge']);
 
-                            if (!newFarmersMap.has(key)) {
-                                newFarmersMap.set(key, {
-                                    name: farmerName,
+                        if (farmerName || ownerId || landId) {
+                            let cleanLandId = landId.trim();
+                            let cleanOwnerId = ownerId.trim();
+                            let cleanFarmerName = farmerName.trim().toLowerCase();
+
+                            let targetFarmer = null;
+
+                            if (cleanLandId) {
+                                for (let f of farmers) {
+                                    if (f.lands && f.lands.some(l => String(l.landId || '').trim() === cleanLandId)) {
+                                        targetFarmer = f;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if (!targetFarmer && cleanOwnerId) {
+                                targetFarmer = farmers.find(f => String(f.owner || '').trim() === cleanOwnerId);
+                            }
+
+                            if (!targetFarmer && cleanFarmerName) {
+                                targetFarmer = farmers.find(f => String(f.name || '').trim().toLowerCase() === cleanFarmerName);
+                            }
+
+                            if (targetFarmer) {
+                                if (clusterNo && !targetFarmer.cluster) targetFarmer.cluster = clusterNo;
+                                if (phoneNum && !targetFarmer.phone) targetFarmer.phone = phoneNum;
+                                if (supplierId && !targetFarmer.supplierId) targetFarmer.supplierId = supplierId;
+                                if (supplierName && !targetFarmer.supplier) targetFarmer.supplier = supplierName;
+                                if (ownerId && !targetFarmer.owner) targetFarmer.owner = ownerId;
+                                updatedFarmers++;
+                            } else {
+                                targetFarmer = {
+                                    name: farmerName || 'Unknown Farmer',
                                     owner: ownerId,
                                     sap: sapId,
                                     supplierId: supplierId,
@@ -642,87 +821,82 @@ document.addEventListener("DOMContentLoaded", () => {
                                     phone: phoneNum,
                                     cluster: clusterNo,
                                     lands: []
-                                });
-                            }
-
-                            let farmerObj = newFarmersMap.get(key);
-                            
-                            if (clusterNo && !farmerObj.cluster) {
-                                farmerObj.cluster = clusterNo;
-                            }
-
-                            if (supplierId && !farmerObj.supplierId) {
-                                farmerObj.supplierId = supplierId;
-                            }
-
-                            if (supplierName && supplierName !== farmerName) {
-                                farmerObj.supplier = supplierName;
-                            }
-
-                            if (phoneNum && !farmerObj.phone) {
-                                farmerObj.phone = phoneNum;
+                                };
+                                farmers.push(targetFarmer);
+                                addedFarmers++;
                             }
 
                             if (landId) {
-                                let landExists = farmerObj.lands.some(l => l.landId === landId);
-                                if (!landExists) {
-                                    farmerObj.lands.push({
+                                if (!targetFarmer.lands) targetFarmer.lands = [];
+
+                                let existingLand = targetFarmer.lands.find(l => String(l.landId || '').trim() === cleanLandId);
+
+                                if (!existingLand) {
+                                    existingLand = {
                                         landId: landId,
                                         cluster: clusterNo,
-                                        area: parseFloat(area) || 0,
+                                        area: area,
                                         history: []
-                                    });
+                                    };
+                                    targetFarmer.lands.push(existingLand);
+                                } else {
+                                    if (area > 0) existingLand.area = area;
+                                }
+
+                                if (hDate || hTons > 0) {
+                                    if (!existingLand.history) existingLand.history = [];
+                                    let dateToUse = hDate || getTodayStr();
+                                    
+                                    let isDup = existingLand.history.some(h => h.date === dateToUse && parseFloat(h.tons) === hTons);
+                                    if (!isDup) {
+                                        existingLand.history.push({
+                                            date: dateToUse,
+                                            acres: hAcres,
+                                            tons: hTons,
+                                            weightBridge: hWeightBridge,
+                                            isHarvestDone: false
+                                        });
+                                        importedHarvests++;
+                                    }
                                 }
                             }
                         }
                     });
 
-                    farmers = Array.from(newFarmersMap.values());
+                    cleanupDuplicates();
                     saveData();
-                    alert("ఎక్సెల్ ఫైల్ విజయవంతంగా ఇంపోర్ట్ అయింది! Cluster & Supplier వివరాలు సరిగ్గా సెట్ అయ్యాయి.");
+
+                    alert(`ఎక్సెల్ డేటా ప్రాసెస్ చేయబడింది!\n- క్రొత్తగా చేరిన రైతులు: ${addedFarmers}\n- అప్‌డేట్ అయిన రైతులు: ${updatedFarmers}\n- చేరిన హార్వెస్ట్ రికార్డులు: ${importedHarvests}`);
                     excelFileInput.value = "";
                 } catch (error) {
                     console.error(error);
-                    alert("ఫైల్ ప్రాసెస్ చేయడంలో లోపం ఏర్పడింది. సరైన ఫార్మాట్ ఇవ్వండి.");
+                    alert("ఫైల్ ప్రాసెస్ చేయడంలో లోపం ఏర్పడింది. దయచేసి సరైన Excel/CSV ఫైల్‌ని ఇవ్వండి.");
                 }
             };
             reader.readAsArrayBuffer(file);
         });
     }
 
-    const farmerNameSelect = document.getElementById("farmerNameSelect");
-    if (farmerNameSelect) {
-        farmerNameSelect.addEventListener("change", (e) => {
-            let selectedVal = e.target.value;
-            let foundFarmer = farmers.find(f => (f.owner === selectedVal || f.sap === selectedVal));
-            if (foundFarmer) {
-                document.getElementById("ownerId").value = foundFarmer.owner || "";
-                document.getElementById("sapId").value = foundFarmer.supplierId || foundFarmer.sap || "";
-                document.getElementById("supplier").value = foundFarmer.supplier || foundFarmer.name || "";
-            }
-        });
-    }
-
     const saveFarmerBtn = document.getElementById("saveFarmer");
     if (saveFarmerBtn) {
         saveFarmerBtn.addEventListener("click", () => {
-            let nameSelect = document.getElementById("farmerNameSelect");
-            let nameText = nameSelect.options[nameSelect.selectedIndex] ? nameSelect.options[nameSelect.selectedIndex].text : "";
-            let nameParts = nameText.split(" - ");
-            let farmerName = nameParts.length > 1 ? nameParts[1] : nameSelect.value;
-
-            let owner = document.getElementById("ownerId").value.trim();
-            let sap = document.getElementById("sapId").value.trim();
-            let supplier = document.getElementById("supplier").value.trim();
-            let phone = prompt("రైతు ఫోన్ నంబర్ నమోదు చేయండి (Phone Number):", "") || "";
-
-            if (!farmerName || farmerName.includes("--")) {
-                alert("దయచేసి సరైన రైతును ఎంచుకోండి లేదా పేరు ఇవ్వండి!");
+            let farmerName = prompt("రైతు పేరు (Farmer Name):") || "";
+            if (!farmerName.trim()) {
+                alert("రైతు పేరు తప్పనిసరి!");
                 return;
             }
 
+            let ownerEl = document.getElementById("ownerId");
+            let sapEl = document.getElementById("sapId");
+            let supplierEl = document.getElementById("supplier");
+
+            let owner = ownerEl ? ownerEl.value.trim() : "";
+            let sap = sapEl ? sapEl.value.trim() : "";
+            let supplier = supplierEl ? supplierEl.value.trim() : "";
+            let phone = prompt("రైతు ఫోన్ నంబర్ నమోదు చేయండి (Phone Number):", "") || "";
+
             farmers.push({
-                name: farmerName,
+                name: farmerName.trim(),
                 owner: owner,
                 sap: sap,
                 supplierId: sap,
@@ -732,25 +906,40 @@ document.addEventListener("DOMContentLoaded", () => {
                 lands: []
             });
 
+            if (ownerEl) ownerEl.value = "";
+            if (sapEl) sapEl.value = "";
+            if (supplierEl) supplierEl.value = "";
+
+            cleanupDuplicates();
             saveData();
-            alert("రైతు వివరాలు విజయవంతంగా సేవ్ అయ్యాయి!");
+            alert("క్రొత్త రైతు వివరాలు సేవ్ అయ్యాయి!");
         });
     }
 
     const saveLandBtn = document.getElementById("saveLand");
     if (saveLandBtn) {
         saveLandBtn.addEventListener("click", () => {
-            let fIdx = document.getElementById("farmerSelect").value;
-            let landId = document.getElementById("landId").value.trim();
-            let area = document.getElementById("landArea").value.trim();
+            let farmerSelectEl = document.getElementById("farmerSelect");
+            let landIdEl = document.getElementById("landId");
+            let landAreaEl = document.getElementById("landArea");
+
+            let fIdx = farmerSelectEl ? farmerSelectEl.value : "";
+            let landId = landIdEl ? landIdEl.value.trim() : "";
+            let area = landAreaEl ? landAreaEl.value.trim() : "";
 
             if (fIdx === "" || !landId || !area) {
-                alert("దయచేసి అన్ని వివరాలను పూరించండి!");
+                alert("దయచేసి రైతును, భూమి ID మరియు విస్తీర్ణం వివరాలను పూరించండి!");
                 return;
             }
 
             if (!farmers[fIdx].lands) {
                 farmers[fIdx].lands = [];
+            }
+
+            let isLandExists = farmers.some(f => f.lands && f.lands.some(l => String(l.landId).trim() === landId));
+            if (isLandExists) {
+                alert("ఈ Land ID ఇప్పటికే వ్యవస్థలో వేరొక రైతు లేదా ఇదే రైతు కింద నమోదు చేయబడింది!");
+                return;
             }
 
             farmers[fIdx].lands.push({
@@ -759,8 +948,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 history: []
             });
 
+            if (landIdEl) landIdEl.value = "";
+            if (landAreaEl) landAreaEl.value = "";
+
             saveData();
-            alert("భూమి వివరాలు విజయవంతంగా సేవ్ అయ్యాయి!");
+            alert("భూమి వివరాలు సేవ్ అయ్యాయి!");
         });
     }
 
@@ -774,19 +966,19 @@ document.addEventListener("DOMContentLoaded", () => {
                 
                 if (fIdx !== "" && farmers[fIdx] && farmers[fIdx].lands && farmers[fIdx].lands.length > 0) {
                     let selectAllDiv = document.createElement("div");
-                    selectAllDiv.style.cssText = "padding: 8px 0; border-bottom: 2px solid #007bff; font-weight: bold; font-size: 13px; color: #007bff; margin-bottom: 10px;";
-                    selectAllDiv.innerHTML = `<label style="cursor:pointer;"><input type="checkbox" id="selectAllLands" style="margin-right: 8px;"> Select All</label>`;
+                    selectAllDiv.style.cssText = "padding: 6px 0; border-bottom: 2px solid #007bff; font-weight: bold; font-size: 13px; color: #007bff; margin-bottom: 8px;";
+                    selectAllDiv.innerHTML = `<label style="cursor:pointer;"><input type="checkbox" id="selectAllLands" style="margin-right: 8px;"> Select All Lands</label>`;
                     container.appendChild(selectAllDiv);
 
                     farmers[fIdx].lands.forEach((land, lIdx) => {
                         let div = document.createElement("div");
-                        div.style.cssText = "padding: 10px; font-size: 13px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 6px; margin-bottom: 8px;";
+                        div.style.cssText = "padding: 8px 10px; font-size: 13px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 6px; margin-bottom: 8px;";
                         div.innerHTML = `
-                            <label style="cursor:pointer; font-weight:bold; display:block; margin-bottom: 6px;">
+                            <label style="cursor:pointer; font-weight:bold; display:block; margin-bottom: 4px;">
                                 <input type="checkbox" name="landCheckbox" value="${lIdx}" class="land-select-cb" style="margin-right: 8px;">
                                 Land ID: <span style="color:#007bff;">${land.landId}</span> (విస్తీర్ణం: ${land.area} ఎకరాలు)
                             </label>
-                            <div id="landInputs_${lIdx}" style="display:none; margin-top: 8px; padding-top: 8px; border-top: 1px dashed #ccc;">
+                            <div id="landInputs_${lIdx}" style="display:none; margin-top: 6px; padding-top: 6px; border-top: 1px dashed #ccc;">
                                 <div style="display:flex; gap:10px;">
                                     <div style="flex:1;">
                                         <label style="font-size:11px; color:#555;">ఎకరాలు (Acres):</label>
@@ -809,17 +1001,20 @@ document.addEventListener("DOMContentLoaded", () => {
                         });
                     });
 
-                    document.getElementById("selectAllLands").addEventListener("change", function() {
-                        let checkboxes = document.querySelectorAll(".land-select-cb");
-                        checkboxes.forEach(cb => {
-                            cb.checked = this.checked;
-                            let inputDiv = document.getElementById(`landInputs_${cb.value}`);
-                            if (inputDiv) inputDiv.style.display = this.checked ? "block" : "none";
+                    const selectAllCb = document.getElementById("selectAllLands");
+                    if (selectAllCb) {
+                        selectAllCb.addEventListener("change", function() {
+                            let checkboxes = document.querySelectorAll(".land-select-cb");
+                            checkboxes.forEach(cb => {
+                                cb.checked = this.checked;
+                                let inputDiv = document.getElementById(`landInputs_${cb.value}`);
+                                if (inputDiv) inputDiv.style.display = this.checked ? "block" : "none";
+                            });
                         });
-                    });
+                    }
 
                 } else {
-                    container.innerHTML = `<span style="color: #888; font-size: 13px;">ఈ రైతుకు తోటల వివరాలు లేవు</span>`;
+                    container.innerHTML = `<span style="color: #888; font-size: 13px;">ఈ రైతుకు తోటల వివరాలు లేవు.</span>`;
                 }
             }
         });
@@ -828,10 +1023,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const saveHarvestBtn = document.getElementById("saveHarvest");
     if (saveHarvestBtn) {
         saveHarvestBtn.addEventListener("click", () => {
-            const fIdx = document.getElementById("harvestFarmer").value;
+            const fIdx = document.getElementById("harvestFarmer") ? document.getElementById("harvestFarmer").value : "";
             let selectedCheckboxes = document.querySelectorAll("input[name='landCheckbox']:checked");
             
-            const hDate = document.getElementById("harvestDate") ? document.getElementById("harvestDate").value : new Date().toISOString().split('T')[0];
+            const harvestDateEl = document.getElementById("harvestDate");
+            const hDate = harvestDateEl && harvestDateEl.value ? normalizeDateStr(harvestDateEl.value) : getTodayStr();
             const ccSelect = document.getElementById("harvestCC");
             const weightBridge = ccSelect ? ccSelect.value : "";
 
@@ -854,7 +1050,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
                     farmers[fIdx].lands[lIdx].history.push({
                         date: hDate,
-                        acres: hAcres,
+                        acres: parseFloat(hAcres) || farmers[fIdx].lands[lIdx].area || 0,
                         tons: parseFloat(hTons) || 0,
                         weightBridge: weightBridge,
                         isHarvestDone: false
@@ -869,7 +1065,13 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             saveData();
-            alert("హార్వెస్ట్ వివరాలు విజయవంతంగా సేవ్ అయ్యాయి!");
+            
+            if (harvestFarmer) {
+                harvestFarmer.value = "";
+                harvestFarmer.dispatchEvent(new Event('change'));
+            }
+
+            alert("హార్వెస్ట్ వివరాలు సేవ్ అయ్యాయి!");
         });
     }
 
@@ -878,7 +1080,6 @@ document.addEventListener("DOMContentLoaded", () => {
         downloadCSVBtn.addEventListener("click", downloadHarvestCSV);
     }
 
-    // 9. FAST SEARCH WITH DEBOUNCE & MEMORY MAP
     const searchInput = document.getElementById("search");
     let searchDebounceTimer = null;
 
@@ -905,3 +1106,16 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 });
+let yearDisplay = land.year ? ` | ఇయర్: <span style="color:#d97706;">${land.year}</span>` : '';
+cardHeaderHtml += `
+    <div style="background:#ffffff; border:1px solid #e2e8f0; border-left:4px solid #10b981; padding:8px 12px; margin-top:6px; border-radius:6px; font-size:12px; display:flex; justify-content:space-between; align-items:center;">
+        <div>
+            <strong style="color:#0f172a;">Land ID: <span style="color:#2563eb;">${land.landId}</span></strong> 
+            <span style="color:#64748b; margin-left:8px;">(${land.area} ఎకరాలు${yearDisplay})</span>
+            <div style="color:#059669; font-size:11px; margin-top:2px;">హార్వెస్ట్‌లు: ${historyCount} రికార్డులు</div>
+        </div>
+        <div style="display:flex; gap:6px;">
+            <button onclick="selectFarmerForHarvest(${fIdx}, ${lIdx})" style="background:#d1fae5; color:#065f46; border:1px solid #10b981; padding:4px 8px; border-radius:6px; cursor:pointer; font-size:11px; font-weight:700;">🏝️Harvest</button>
+            <button onclick="deleteLand(${fIdx}, ${lIdx})" style="background:#fee2e2; color:#991b1b; border:1px solid #f87171; padding:4px 6px; border-radius:6px; cursor:pointer; font-size:11px;">🗑️</button>
+        </div>
+    </div>`;
