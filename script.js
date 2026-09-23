@@ -1,5 +1,5 @@
 // =========================================================
-// OIL PALM HARVESTING MANAGEMENT SYSTEM - PRODUCTION SCRIPT
+// OIL PALM HARVESTING MANAGEMENT SYSTEM
 // =========================================================
 
 // 1. HELPER FUNCTIONS FOR DATES & STRINGS
@@ -50,7 +50,7 @@ function normalizeDateStr(dateInput) {
 // 2. LOCAL STORAGE & DATA INITIALIZATION
 let farmers = JSON.parse(localStorage.getItem("nbl_farmers_data")) || JSON.parse(localStorage.getItem("farmersData")) || [];
 
-// FIXED DEDUPLICATION BASED STRICTLY ON OWNER ID / UNIQUE IDENTIFIERS
+// CLEANUP DUPLICATES
 function cleanupDuplicates() {
     if (!farmers || !Array.isArray(farmers) || farmers.length === 0) {
         farmers = [];
@@ -101,7 +101,7 @@ function cleanupDuplicates() {
                         landId: land.landId,
                         cluster: land.cluster || farmer.cluster || '',
                         area: parseFloat(land.area) || 0,
-                        plantYear: land.plantYear || land.plantationYear || 'N/A', // Plant Year stored
+                        plantYear: land.plantYear || land.plantationYear || 'N/A',
                         history: []
                     };
                     existing.lands.push(existingLand);
@@ -209,7 +209,7 @@ function populateFarmerDropdowns() {
 
     let currentHarvestVal = harvestFarmer.value;
 
-    let optionsHtml = '<option value="">-- రైతును ఎంచుకోండి (Select Farmer) --</option>';
+    let optionsHtml = '<option value="">-- Rythuni Enchukondi (Select Farmer) --</option>';
     farmers.forEach((farmer, idx) => {
         let displayId = farmer.owner || farmer.sap || farmer.supplierId || 'ID:N/A';
         optionsHtml += `<option value="${idx}">${displayId} - ${farmer.name}</option>`;
@@ -221,7 +221,7 @@ function populateFarmerDropdowns() {
     }
 }
 
-// 5. RENDER FARMER CARDS (14 Series Mundhu Plant Year)
+// 5. RENDER FARMER CARDS
 function renderFarmerCards(filteredData = null) {
     const list = document.getElementById("farmerList");
     if (!list) return;
@@ -229,11 +229,10 @@ function renderFarmerCards(filteredData = null) {
     let dataToRender = filteredData ? [...filteredData] : [...farmers];
 
     if (dataToRender.length === 0) {
-        list.innerHTML = `<div style="text-align:center; color:#888; padding:30px; background:#fff; border-radius:10px; border:1px dashed #ccc;">రైతు వివరాలు ఏమీ లేవు.</div>`;
+        list.innerHTML = `<div style="text-align:center; color:#888; padding:30px; background:#fff; border-radius:10px; border:1px dashed #ccc;">Rythu vivaralu emi levu.</div>`;
         return;
     }
 
-    // Sort alphabetically by name (A to Z)
     dataToRender.sort((a, b) => {
         let nameA = (a.name || "").trim().toLowerCase();
         let nameB = (b.name || "").trim().toLowerCase();
@@ -249,7 +248,7 @@ function renderFarmerCards(filteredData = null) {
             : '<span style="color:#adb5bd;">N/A</span>';
 
         let cardContainer = document.createElement("div");
-        cardContainer.style.cssText = "background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; margin-bottom:16px; padding:16px; box-shadow:0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03); transition:all 0.3s ease;";
+        cardContainer.style.cssText = "background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; margin-bottom:16px; padding:16px; box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);";
 
         let cardHeaderHtml = `
             <div style="display:flex; justify-content:space-between; align-items:flex-start; border-bottom:1px solid #f1f5f9; padding-bottom:10px; margin-bottom:10px;">
@@ -274,30 +273,29 @@ function renderFarmerCards(filteredData = null) {
             </div>`;
 
         if (farmer.lands && farmer.lands.length > 0) {
-            cardHeaderHtml += `<div style="font-size:12px; font-weight:600; color:#334155; margin-bottom:6px;">మొత్తం తోటలు (Lands):</div>`;
+            cardHeaderHtml += `<div style="font-size:12px; font-weight:600; color:#334155; margin-bottom:6px;">Thotalu (Lands):</div>`;
             farmer.lands.forEach((land, lIdx) => {
                 let historyCount = (land.history && land.history.length) ? land.history.length : 0;
                 
-                // Plantation Year Format (14 Series ID ki mundhu)
                 let plantYearDisplay = (land.plantYear && land.plantYear !== 'N/A') 
                     ? `<span style="color:#16a34a; font-weight:700; margin-right:4px;">🌱 [${land.plantYear}]</span>` 
                     : '';
 
                 cardHeaderHtml += `
-                <div style="background:#ffffff; border:1px solid #e2e8f0; border-left:4px solid #10b981; padding:8px 12px; margin-top:6px; border-radius:6px; font-size:12px; display:flex; justify-content:space-between; align-items:center;">
+                <div style="background:#ffffff; border:1px solid #e2e8f0; border-left:4px solid #10b981; padding:8px 12px; margin-top:6px; border-radius:6px; font-size:12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
                     <div>
                         <strong style="color:#0f172a;">${plantYearDisplay}Land ID: <span style="color:#2563eb;">${land.landId}</span></strong> 
-                        <span style="color:#64748b; margin-left:8px;">(${land.area} ఎకరాలు)</span>
-                        <div style="color:#059669; font-size:11px; margin-top:2px;">హార్వెస్ట్‌లు: ${historyCount} రికార్డులు</div>
+                        <span style="color:#64748b; margin-left:8px;">(${land.area} Acres)</span>
+                        <div style="color:#059669; font-size:11px; margin-top:2px;">Harvests: ${historyCount} records</div>
                     </div>
-                    <div style="display:flex; gap:6px;">
+                    <div style="display:flex; gap:6px; align-items:center;">
                         <button onclick="selectFarmerForHarvest(${fIdx}, ${lIdx})" style="background:#d1fae5; color:#065f46; border:1px solid #10b981; padding:4px 8px; border-radius:6px; cursor:pointer; font-size:11px; font-weight:700;">🏝️Harvest</button>
                         <button onclick="deleteLand(${fIdx}, ${lIdx})" style="background:#fee2e2; color:#991b1b; border:1px solid #f87171; padding:4px 6px; border-radius:6px; cursor:pointer; font-size:11px;">🗑️</button>
                     </div>
                 </div>`;
             });
         } else {
-            cardHeaderHtml += `<div style="font-size:12px; color:#94a3b8; font-style:italic; padding:4px 0;">(ఈ రైతుకి భూమి వివరాలు నమోదు కాలేదు)</div>`;
+            cardHeaderHtml += `<div style="font-size:12px; color:#94a3b8; font-style:italic; padding:4px 0;">(Ee rythu ki bhoomi vivaralu levu)</div>`;
         }
 
         cardContainer.innerHTML = cardHeaderHtml;
@@ -308,7 +306,7 @@ function renderFarmerCards(filteredData = null) {
     list.appendChild(fragment);
 }
 
-// 6. 10 DAYS HARVEST REMINDER & POPUP
+// 6. 10 DAYS HARVEST REMINDER
 function renderHarvestedTable() {
     const popupContent = document.getElementById("harvestPopupContent");
     const badgeCount = document.getElementById("harvestBadgeCount");
@@ -352,7 +350,7 @@ function renderHarvestedTable() {
     badgeCount.innerText = harvestItems.length;
 
     if (harvestItems.length === 0) {
-        popupContent.innerHTML = `<div style="text-align:center; color:#888; padding:20px; font-size:13px;">10 రోజులు దాటిన తోటల అలర్ట్‌లు ఏవీ లేవు. 👍</div>`;
+        popupContent.innerHTML = `<div style="text-align:center; color:#888; padding:20px; font-size:13px;">10 rojulu datina thotala alerts emi levu. 👍</div>`;
         return;
     }
 
@@ -368,7 +366,7 @@ function renderHarvestedTable() {
             <div>
                 <strong style="color: #333; font-size:13px;">${index + 1}. ${item.farmerName}</strong><br>
                 <span style="color: #555;">Owner/SAP ID: ${item.sapId} | Land ID: <b>${item.landId}</b></span><br>
-                <span style="color: #d32f2f; font-weight:bold;">చివరి హార్వెస్ట్: ${displayDate} (${item.days} రోజులు పూర్తయ్యాయి)</span>
+                <span style="color: #d32f2f; font-weight:bold;">Chivari Harvest: ${displayDate} (${item.days} rojulu purthayyayi)</span>
             </div>
             <button onclick="markHarvestDone(${item.fIdx}, ${item.lIdx}, ${item.hIdx})" style="background:#28a745; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:11px; font-weight:bold;">Done</button>
         `;
@@ -436,7 +434,7 @@ function renderTodayHarvestTable() {
 
     if (badgeCount) badgeCount.innerText = harvestItems.length;
     if (harvestItems.length === 0) {
-        popupContent.innerHTML = `<div style="text-align:center; color:#888; padding:15px; font-size:13px;">ఈరోజు హార్వెస్ట్ రికార్డులు ఏవీ నమోదు కాలేదు.</div>`;
+        popupContent.innerHTML = `<div style="text-align:center; color:#888; padding:15px; font-size:13px;">Eroju harvest records emi levu.</div>`;
         return;
     }
     harvestItems.forEach((item, idx) => {
@@ -446,27 +444,34 @@ function renderTodayHarvestTable() {
             <div>
                 <strong style="color: #333; font-size:13px;">${idx + 1}. ${item.farmerName}</strong><br>
                 <span style="color: #666;">Owner ID: ${item.sapId} | Land: ${item.landId} | CC: ${item.weightBridge}</span><br>
-                <span style="color: #28a745; font-weight:bold;">ఎకరాలు: ${item.acres} | టన్స్: ${item.tons} T</span>
+                <span style="color: #28a745; font-weight:bold;">Acres: ${item.acres} | Tons: ${item.tons} T</span>
             </div>
-            <span style="background:#e8f5e9; color:#2e7d32; padding:3px 6px; border-radius:4px; font-size:11px; font-weight:bold;">ఈరోజే</span>
+            <span style="background:#e8f5e9; color:#2e7d32; padding:3px 6px; border-radius:4px; font-size:11px; font-weight:bold;">Eroje</span>
         `;
         popupContent.appendChild(div);
     });
 }
 
-// 8. CSV / EXCEL EXPORT & BACKUP
+// 8. CSV / EXCEL EXPORT
 function downloadCSVFile(csvContent, fileName) {
-    let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    let blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+    
+    if (navigator.msSaveBlob) { 
+        navigator.msSaveBlob(blob, fileName);
+        return;
+    }
+
     let url = URL.createObjectURL(blob);
     let link = document.createElement("a");
     link.href = url;
     link.setAttribute("download", fileName);
     document.body.appendChild(link);
     link.click();
+    
     setTimeout(() => {
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
-    }, 200);
+    }, 1000);
 }
 
 function downloadHarvestCSV() {
@@ -527,11 +532,11 @@ function downloadHarvestCSV() {
     });
 
     if (recordCount === 0) {
-        alert("సెలెక్ట్ చేసిన తేదీలలో ఎలాంటి హార్వెస్ట్ రికార్డులు లేవు!");
+        alert("Select chesina teedhilalo harvest records levu!");
         return;
     }
 
-    let csvContent = "\uFEFF" + csvRows.join("\n");
+    let csvContent = csvRows.join("\r\n");
     let fileName = (startDate && endDate) 
         ? `Harvest_Report_${startDate}_to_${endDate}.csv` 
         : `Harvest_Report_All.csv`;
@@ -539,15 +544,15 @@ function downloadHarvestCSV() {
     downloadCSVFile(csvContent, fileName);
 }
 
-// FULL BACKUP TO EXCEL (.XLSX)
+// EXPORT TO EXCEL
 function exportDataToExcel() {
     if (!farmers || farmers.length === 0) {
-        alert("ఎక్స్‌పోర్ట్ చేయడానికి ఎలాంటి డేటా లేదు!");
+        alert("Export cheyadaniki data ledu!");
         return;
     }
 
     if (typeof XLSX === "undefined") {
-        alert("XLSX లైబ్రరీ కనుగొనబడలేదు! దయచేసి ఇంటర్నెట్ సరిగ్గా ఉందో లేదో సరిచూసుకోండి.");
+        alert("XLSX library ledu!");
         return;
     }
 
@@ -622,7 +627,7 @@ function exportData() {
     exportDataToExcel();
 }
 
-// 9. MODAL CONTROLLERS & EDIT / DELETE FARMER & HISTORY
+// 9. MODAL CONTROLLERS & FARMER ACTIONS
 function openFormModal(formType, paramIndex = null) {
     let modal = document.getElementById("formModal");
     let body = document.getElementById("formModalBody");
@@ -647,10 +652,10 @@ function openFormModal(formType, paramIndex = null) {
     }
 
     if (formType === 'addFarmer') {
-        title.innerText = "➕ నూతన రైతుని నమోదు చేయండి";
+        title.innerText = "➕ Kotha Rythuni Add Cheyandi";
         body.innerHTML = `
             <div style="display:flex; flex-direction:column; gap:10px;">
-                <input type="text" id="mFarmerName" placeholder="రైతు పేరు (Farmer Name)" style="padding:10px; border:1px solid #ccc; border-radius:5px; font-size:14px;">
+                <input type="text" id="mFarmerName" placeholder="Rythu Name" style="padding:10px; border:1px solid #ccc; border-radius:5px; font-size:14px;">
                 <input type="text" id="mOwnerId" placeholder="Owner ID" style="padding:10px; border:1px solid #ccc; border-radius:5px; font-size:14px;">
                 <input type="text" id="mSapId" placeholder="SAP / Supplier ID" style="padding:10px; border:1px solid #ccc; border-radius:5px; font-size:14px;">
                 <input type="text" id="mCluster" placeholder="Cluster No." style="padding:10px; border:1px solid #ccc; border-radius:5px; font-size:14px;">
@@ -664,10 +669,10 @@ function openFormModal(formType, paramIndex = null) {
     } else if (formType === 'editFarmer') {
         const farmer = farmers[paramIndex];
         if (!farmer) return;
-        title.innerText = "✏️ రైతు వివరాలు ఎడిట్ చేయండి";
+        title.innerText = "✏️ Rythu Details Edit";
         body.innerHTML = `
             <div style="display:flex; flex-direction:column; gap:10px;">
-                <input type="text" id="mFarmerName" value="${farmer.name || ''}" placeholder="రైతు పేరు" style="padding:10px; border:1px solid #ccc; border-radius:5px; font-size:14px;">
+                <input type="text" id="mFarmerName" value="${farmer.name || ''}" placeholder="Rythu Name" style="padding:10px; border:1px solid #ccc; border-radius:5px; font-size:14px;">
                 <input type="text" id="mOwnerId" value="${farmer.owner || ''}" placeholder="Owner ID" style="padding:10px; border:1px solid #ccc; border-radius:5px; font-size:14px;">
                 <input type="text" id="mSapId" value="${farmer.supplierId || farmer.sap || ''}" placeholder="Supplier ID / SAP ID" style="padding:10px; border:1px solid #ccc; border-radius:5px; font-size:14px;">
                 <input type="text" id="mSupplierName" value="${farmer.supplier || ''}" placeholder="Supplier Name" style="padding:10px; border:1px solid #ccc; border-radius:5px; font-size:14px;">
@@ -696,7 +701,7 @@ function saveModalFarmer() {
     const area = document.getElementById("mLandArea") ? parseFloat(document.getElementById("mLandArea").value) || 0 : 0;
 
     if (!name && !owner) {
-        alert("Please enter Farmer Name or Owner ID!");
+        alert("Farmer Name leda Owner ID enter cheyandi!");
         return;
     }
 
@@ -741,7 +746,7 @@ function saveModalFarmer() {
     cleanupDuplicates();
     saveData();
     closeFormModal();
-    alert("Farmer successfully add ayyaru!");
+    alert("Farmer add ayyaru!");
 }
 
 function saveEditedFarmer(fIdx) {
@@ -768,14 +773,14 @@ function saveEditedFarmer(fIdx) {
 }
 
 function deleteFarmer(fIdx) {
-    if (confirm(`మీరు ఖచ్చితంగా '${farmers[fIdx].name}' రైతు వివరాలను డిలీట్ చేయాలనుకుంటున్నారా?`)) {
+    if (confirm(`'${farmers[fIdx].name}' rythu details delete cheyala?`)) {
         farmers.splice(fIdx, 1);
         saveData();
     }
 }
 
 function deleteLand(fIdx, lIdx) {
-    if (confirm("ఈ భూమి మరియు దాని హార్వెస్ట్ హిస్టరీని డిలీట్ చేయాలా?")) {
+    if (confirm("Ee bhoomi & history delete cheyala?")) {
         farmers[fIdx].lands.splice(lIdx, 1);
         saveData();
     }
@@ -802,7 +807,7 @@ function viewFarmerFullHistory(farmerIndex) {
         document.body.appendChild(modal);
     }
 
-    document.getElementById("historyModalTitle").innerText = `${farmer.name} - హార్వెస్ట్ హిస్టరీ`;
+    document.getElementById("historyModalTitle").innerText = `${farmer.name} - Harvest History`;
     let bodyDiv = document.getElementById("historyModalBody");
     bodyDiv.innerHTML = "";
 
@@ -814,9 +819,9 @@ function viewFarmerFullHistory(farmerIndex) {
                 hasHistory = true;
                 let plantYearTag = land.plantYear ? `🌱 [${land.plantYear}] ` : '';
                 htmlContent += `
-                    <div style="font-weight:bold; color:#007bff; margin-top:10px; background:#eef7ff; padding:4px 8px; border-radius:4px;">${plantYearTag}Land ID: ${land.landId} (${land.area} ఎకరాలు)</div>
+                    <div style="font-weight:bold; color:#007bff; margin-top:10px; background:#eef7ff; padding:4px 8px; border-radius:4px;">${plantYearTag}Land ID: ${land.landId} (${land.area} Acres)</div>
                     <table style="width:100%; border-collapse:collapse; font-size:12px; margin-bottom:10px; margin-top:5px;">
-                        <thead><tr style="background:#f1f1f1;"><th style="border:1px solid #ddd; padding:4px;">తేదీ</th><th style="border:1px solid #ddd; padding:4px;">ఎకరాలు</th><th style="border:1px solid #ddd; padding:4px;">టన్స్</th><th style="border:1px solid #ddd; padding:4px;">CC</th><th style="border:1px solid #ddd; padding:4px;">చర్యలు</th></tr></thead>
+                        <thead><tr style="background:#f1f1f1;"><th style="border:1px solid #ddd; padding:4px;">Date</th><th style="border:1px solid #ddd; padding:4px;">Acres</th><th style="border:1px solid #ddd; padding:4px;">Tons</th><th style="border:1px solid #ddd; padding:4px;">CC</th><th style="border:1px solid #ddd; padding:4px;">Actions</th></tr></thead>
                         <tbody>`;
                 land.history.forEach((h, hIdx) => {
                     htmlContent += `
@@ -838,7 +843,7 @@ function viewFarmerFullHistory(farmerIndex) {
     }
 
     if (!hasHistory) {
-        bodyDiv.innerHTML = `<div style="text-align:center; color:#888; padding:20px;">ఈ రైతుకు గత హార్వెస్ట్ రికార్డులు ఏవీ లేవు.</div>`;
+        bodyDiv.innerHTML = `<div style="text-align:center; color:#888; padding:20px;">Harvest records emi levu.</div>`;
     }
 
     modal.style.display = "flex";
@@ -846,13 +851,13 @@ function viewFarmerFullHistory(farmerIndex) {
 
 function editHarvest(fIdx, lIdx, hIdx) {
     let record = farmers[fIdx].lands[lIdx].history[hIdx];
-    let newTons = prompt("నూతన టన్నులు (Tons) నమోదు చేయండి:", record.tons);
+    let newTons = prompt("Tons enter cheyandi:", record.tons);
     if (newTons === null) return;
 
-    let newAcres = prompt("నూతన ఎకరాలు (Acres) నమోదు చేయండి:", record.acres);
+    let newAcres = prompt("Acres enter cheyandi:", record.acres);
     if (newAcres === null) return;
 
-    let newDate = prompt("తేదీ (YYYY-MM-DD):", record.date);
+    let newDate = prompt("Date (YYYY-MM-DD):", record.date);
     if (newDate === null) return;
 
     farmers[fIdx].lands[lIdx].history[hIdx].tons = parseFloat(newTons) || 0;
@@ -864,7 +869,7 @@ function editHarvest(fIdx, lIdx, hIdx) {
 }
 
 function deleteHarvest(fIdx, lIdx, hIdx) {
-    if (confirm("ఈ హార్వెస్ట్ రికార్డును తొలగించాలా?")) {
+    if (confirm("Ee harvest record delete cheyala?")) {
         farmers[fIdx].lands[lIdx].history.splice(hIdx, 1);
         saveData();
         viewFarmerFullHistory(fIdx);
@@ -899,15 +904,15 @@ document.addEventListener("DOMContentLoaded", () => {
     cleanupDuplicates();
     saveData();
 
-    // EXCEL / CSV IMPORT FUNCTIONALITY (WITH PLANTATION YEAR SUPPORT)
+    // IMPORT EXCEL / CSV FUNCTION
     function processImportFile(file) {
         if (!file) {
-            alert("దయచేసి ఫైల్‌ని సెలెక్ట్ చేయండి!");
+            alert("File select cheyandi!");
             return;
         }
 
         if (typeof XLSX === "undefined") {
-            alert("XLSX లైబ్రరీ కనుగొనబడలేదు!");
+            alert("XLSX library ledu!");
             return;
         }
 
@@ -921,7 +926,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 let jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
                 if (jsonData.length === 0) {
-                    alert("ఫైల్‌లో డేటా ఖాళీగా ఉంది!");
+                    alert("File lo data ledu!");
                     return;
                 }
 
@@ -942,10 +947,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
 
                 jsonData.forEach(row => {
-                    let clusterNo = getFieldValue(row, ['Cluster No.', 'Cluster No', 'Cluster', 'CLUSTER', 'క్లస్టర్']);
+                    let clusterNo = getFieldValue(row, ['Cluster No.', 'Cluster No', 'Cluster', 'CLUSTER']);
                     
-                    let fLastName = getFieldValue(row, ['Owner Last Name', 'Surname', 'ఇంటి పేరు', 'Last Name']);
-                    let fFirstName = getFieldValue(row, ['Farm Owner Name', 'First Name', 'Farmer Name', 'పేరు', 'Name', 'Owner Name']);
+                    let fLastName = getFieldValue(row, ['Owner Last Name', 'Surname', 'Last Name']);
+                    let fFirstName = getFieldValue(row, ['Farm Owner Name', 'First Name', 'Farmer Name', 'Name', 'Owner Name']);
                     let farmerName = (fLastName && fFirstName) ? `${fLastName} ${fFirstName}` : (fFirstName || fLastName || '');
 
                     let sLastName = getFieldValue(row, ['Supplier Last Name']);
@@ -955,16 +960,15 @@ document.addEventListener("DOMContentLoaded", () => {
                     let ownerId = getFieldValue(row, ['Farmowner ID', 'Owner ID', 'FarmownerID', 'OwnerID']);
                     let sapId = getFieldValue(row, ['SAP ID', 'SAP', 'SAPID']);
                     let supplierId = getFieldValue(row, ['Supplier ID', 'SupplierID']) || sapId;
-                    let landId = getFieldValue(row, ['Farmer/Land ID', 'Land ID', 'LandID', 'భూమి ID', 'Plot ID', 'PlotID']);
-                    let area = parseFloat(getFieldValue(row, ['Area Proposed', 'Acres', 'ఎకరాలు', 'Area', 'No. of Acres Harvesting'])) || 0;
+                    let landId = getFieldValue(row, ['Farmer/Land ID', 'Land ID', 'LandID', 'Plot ID', 'PlotID']);
+                    let area = parseFloat(getFieldValue(row, ['Area Proposed', 'Acres', 'Area', 'No. of Acres Harvesting'])) || 0;
                     let phoneNum = getFieldValue(row, ['Phone Number', 'Phone', 'Mobile', 'Cell']);
 
-                    // Plantation Year Column Detection
-                    let plantYear = getFieldValue(row, ['Plantation Year', 'Planting Year', 'Plant Year', 'Year', 'సంవత్సరం']);
+                    let plantYear = getFieldValue(row, ['Plantation Year', 'Planting Year', 'Plant Year', 'Year']);
 
-                    let rawHDate = getFieldValue(row, ['Harvest Date', 'Date', 'తేదీ']);
+                    let rawHDate = getFieldValue(row, ['Harvest Date', 'Date']);
                     let hDate = rawHDate ? normalizeDateStr(rawHDate) : '';
-                    let hTons = parseFloat(getFieldValue(row, ['Estimated Tons', 'Tons', 'టన్నులు'])) || 0;
+                    let hTons = parseFloat(getFieldValue(row, ['Estimated Tons', 'Tons'])) || 0;
                     let hAcres = parseFloat(getFieldValue(row, ['No. of Acres Harvesting', 'Harvest Acres'])) || area;
                     let hWeightBridge = getFieldValue(row, ['Expected CC', 'CC', 'WeightBridge']);
 
@@ -1056,10 +1060,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 cleanupDuplicates();
                 saveData();
 
-                alert(`డేటా విజయవంతంగా ఇంపోర్ట్ చేయబడింది!\n- క్రొత్తగా చేరిన రైతులు: ${addedFarmers}\n- అప్‌డేట్ అయిన రైతులు: ${updatedFarmers}\n- చేరిన హార్వెస్ట్ రికార్డులు: ${importedHarvests}`);
+                alert(`Data imported successfully!\n- Added: ${addedFarmers}\n- Updated: ${updatedFarmers}\n- Harvests: ${importedHarvests}`);
             } catch (error) {
                 console.error(error);
-                alert("ఫైల్ ప్రాసెస్ చేయడంలో లోపం ఏర్పడింది. దయచేసి సరైన Excel/CSV ఫైల్‌ని ఇవ్వండి.");
+                alert("File process cheyadam lo error ochindi.");
             }
         };
         reader.readAsArrayBuffer(file);
@@ -1073,7 +1077,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (excelFileInput.files.length > 0) {
                 processImportFile(excelFileInput.files[0]);
             } else {
-                alert("దయచేసి ముందుగా ఒక ఎక్సెల్ లేదా సీఎస్‌వీ ఫైల్‌ని సెలెక్ట్ చేయండి!");
+                alert("Excel or CSV file select cheyandi!");
             }
         });
     }
@@ -1099,16 +1103,16 @@ document.addEventListener("DOMContentLoaded", () => {
                         div.innerHTML = `
                             <label style="cursor:pointer; font-weight:bold; display:block; margin-bottom: 4px;">
                                 <input type="checkbox" name="landCheckbox" value="${lIdx}" class="land-select-cb" style="margin-right: 8px;">
-                                ${plantYearTag}Land ID: <span style="color:#007bff;">${land.landId}</span> (విస్తీర్ణం: ${land.area} ఎకరాలు)
+                                ${plantYearTag}Land ID: <span style="color:#007bff;">${land.landId}</span> (${land.area} Acres)
                             </label>
                             <div id="landInputs_${lIdx}" style="display:none; margin-top: 6px; padding-top: 6px; border-top: 1px dashed #ccc;">
                                 <div style="display:flex; gap:10px;">
                                     <div style="flex:1;">
-                                        <label style="font-size:11px; color:#555;">ఎకరాలు (Acres):</label>
+                                        <label style="font-size:11px; color:#555;">Acres:</label>
                                         <input type="number" id="acres_${lIdx}" value="${land.area || ''}" step="any" style="width:100%; padding:5px; font-size:12px; border:1px solid #ccc; border-radius:4px;">
                                     </div>
                                     <div style="flex:1;">
-                                        <label style="font-size:11px; color:#555;">టన్నులు (Tons):</label>
+                                        <label style="font-size:11px; color:#555;">Tons:</label>
                                         <input type="number" id="tons_${lIdx}" placeholder="Tons" step="any" style="width:100%; padding:5px; font-size:12px; border:1px solid #ccc; border-radius:4px;">
                                     </div>
                                 </div>
@@ -1137,7 +1141,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
 
                 } else {
-                    container.innerHTML = `<span style="color: #888; font-size: 13px;">ఈ రైతుకు తోటల వివరాలు లేవు.</span>`;
+                    container.innerHTML = `<span style="color: #888; font-size: 13px;">Thotala details levu.</span>`;
                 }
             }
         });
@@ -1155,7 +1159,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const weightBridge = ccSelect ? ccSelect.value : "";
 
             if (fIdx === "" || selectedCheckboxes.length === 0) {
-                alert("దయచేసి రైతును మరియు కనీసం ఒక తోటను ఎంచుకోండి!");
+                alert("Rythu mariyu land select cheyandi!");
                 return;
             }
 
@@ -1183,7 +1187,7 @@ document.addEventListener("DOMContentLoaded", () => {
             });
 
             if (savedCount === 0) {
-                alert("దయచేసి ఎంచుకున్న తోటకు టన్నులు (Tons) నమోదు చేయండి!");
+                alert("Tons enter cheyandi!");
                 return;
             }
 
@@ -1194,7 +1198,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 harvestFarmer.dispatchEvent(new Event('change'));
             }
 
-            alert("హార్వెస్ట్ వివరాలు సేవ్ అయ్యాయి!");
+            alert("Harvest details save ayyayi!");
         });
     }
 
@@ -1230,7 +1234,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 
-// IMPORT HANDLER FOR FILE INPUT
 function importData(event) {
     let inputNode = event.target;
     let file = inputNode.files[0];
@@ -1248,12 +1251,10 @@ function importData(event) {
     }
 }
 
-// Toggle Form Visibility
 function toggleAddForm() {
     openFormModal('addFarmer');
 }
 
-// Save New Farmer and Land Details Together
 function saveNewFarmerLand() {
     saveModalFarmer();
 }
