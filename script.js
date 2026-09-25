@@ -1,5 +1,5 @@
 // =========================================================
-// OIL PALM HARVESTING MANAGEMENT SYSTEM
+// OIL PALM HARVESTING MANAGEMENT SYSTEM (OPTIMIZED & FIXED)
 // =========================================================
 
 // 1. HELPER FUNCTIONS FOR DATES & STRINGS
@@ -13,23 +13,24 @@ function getTodayStr() {
 
 function parseLocalDate(dateStr) {
     if (!dateStr) return new Date();
-    let parts = String(dateStr).split('-');
+    let str = String(dateStr).trim();
+    let parts = str.split('-');
     if (parts.length === 3) {
         return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
     }
-    return new Date(dateStr);
+    return new Date(str);
 }
 
 function normalizeDateStr(dateInput) {
     if (!dateInput) return getTodayStr();
     let str = String(dateInput).trim();
     
-    // Excel Serial Date Number handling
+    // Excel Serial Date Number handling (Fixed Offset)
     if (!isNaN(str) && Number(str) > 30000 && Number(str) < 60000) {
-        let excelDate = new Date((Number(str) - (25567 + 2)) * 86400 * 1000);
-        let y = excelDate.getFullYear();
-        let m = String(excelDate.getMonth() + 1).padStart(2, '0');
-        let d = String(excelDate.getDate()).padStart(2, '0');
+        let excelDate = new Date((Number(str) - 25569) * 86400 * 1000);
+        let y = excelDate.getUTCFullYear();
+        let m = String(excelDate.getUTCMonth() + 1).padStart(2, '0');
+        let d = String(excelDate.getUTCDate()).padStart(2, '0');
         return `${y}-${m}-${d}`;
     }
 
@@ -95,7 +96,7 @@ function cleanupDuplicates() {
                 let cleanLandId = String(land.landId || '').trim();
                 if (!cleanLandId) return;
 
-                let existingLand = existing.lands.find(l => String(l.landId || '').trim() === cleanLandId);
+                let existingLand = existing.lands.find(l => String(l.landId || '').trim().toLowerCase() === cleanLandId.toLowerCase());
                 if (!existingLand) {
                     existingLand = {
                         landId: land.landId,
@@ -229,7 +230,7 @@ function renderFarmerCards(filteredData = null) {
     let dataToRender = filteredData ? [...filteredData] : [...farmers];
 
     if (dataToRender.length === 0) {
-        list.innerHTML = `<div style="text-align:center; color:#888; padding:30px; background:#fff; border-radius:10px; border:1px dashed #ccc;">Rythu vivaralu emi levu.</div>`;
+        list.innerHTML = `<div style="text-align:center; color:#888; padding:30px; background:#fff; border-radius:10px; border:1px dashed #ccc;">రైతు వివరాలు ఏమి లేవు .</div>`;
         return;
     }
 
@@ -366,7 +367,7 @@ function renderHarvestedTable() {
             <div>
                 <strong style="color: #333; font-size:13px;">${index + 1}. ${item.farmerName}</strong><br>
                 <span style="color: #555;">Owner/SAP ID: ${item.sapId} | Land ID: <b>${item.landId}</b></span><br>
-                <span style="color: #d32f2f; font-weight:bold;">Chivari Harvest: ${displayDate} (${item.days} rojulu purthayyayi)</span>
+                <span style="color: #d32f2f; font-weight:bold;">Chivari Harvest: ${displayDate} (${item.days} రోజులు పూర్తి అయ్యాయి )</span>
             </div>
             <button onclick="markHarvestDone(${item.fIdx}, ${item.lIdx}, ${item.hIdx})" style="background:#28a745; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:11px; font-weight:bold;">Done</button>
         `;
@@ -452,8 +453,9 @@ function renderTodayHarvestTable() {
     });
 }
 
-// 8. CSV / EXCEL EXPORT
+// 8. OPTIMIZED CSV / EXCEL EXPORT ENGINE
 function downloadCSVFile(csvContent, fileName) {
+    // UTF-8 BOM add చేయడం వల్ల Excel లో తెలుగు అక్షరాలు లేదా స్పెషల్ క్యారెక్టర్లు కరప్ట్ అవ్వవు
     let blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
     
     if (navigator.msSaveBlob) { 
@@ -465,21 +467,29 @@ function downloadCSVFile(csvContent, fileName) {
     let link = document.createElement("a");
     link.href = url;
     link.setAttribute("download", fileName);
+    link.style.display = "none";
     document.body.appendChild(link);
+    
     link.click();
     
+    // 5 సెకన్ల సేఫ్ టైమ్‌అవుట్ వల్ల బ్రౌజర్ ఆటోమేటిక్‌గా ఫైల్‌ను బ్లాక్ చేయకుండా పూర్తిగా డౌన్‌లోడ్ అవ్వనిస్తుంది
     setTimeout(() => {
-        document.body.removeChild(link);
+        if (document.body.contains(link)) {
+            document.body.removeChild(link);
+        }
         URL.revokeObjectURL(url);
-    }, 1000);
+    }, 5000);
 }
 
 function downloadHarvestCSV() {
-    let startDate = document.getElementById("startDate") ? document.getElementById("startDate").value : "";
-    let endDate = document.getElementById("endDate") ? document.getElementById("endDate").value : "";
+    let startDateEl = document.getElementById("startDate");
+    let endDateEl = document.getElementById("endDate");
+
+    let startDate = startDateEl ? startDateEl.value : "";
+    let endDate = endDateEl ? endDateEl.value : "";
     
     let csvRows = [];
-    csvRows.push([
+    let headers = [
         "S.No", 
         "Cluster No.", 
         "Area Manager", 
@@ -489,7 +499,9 @@ function downloadHarvestCSV() {
         "Estimated Tons", 
         "Supplier ID", 
         "Expected CC"
-    ].map(v => `"${v}"`).join(","));
+    ];
+
+    csvRows.push(headers.map(v => `"${String(v).replace(/"/g, '""')}"`).join(","));
 
     let recordCount = 0;
     let serialNo = 1;
@@ -511,7 +523,7 @@ function downloadHarvestCSV() {
                             let supplierId = farmer.supplierId || farmer.sap || farmer.owner || '';
                             let expectedCC = h.weightBridge || '';
 
-                            csvRows.push([
+                            let row = [
                                 serialNo++,
                                 clusterNo,
                                 areaManager,
@@ -521,8 +533,9 @@ function downloadHarvestCSV() {
                                 h.tons || '',
                                 supplierId,
                                 expectedCC
-                            ].map(v => `"${v}"`).join(","));
+                            ];
 
+                            csvRows.push(row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(","));
                             recordCount++;
                         }
                     });
@@ -539,7 +552,7 @@ function downloadHarvestCSV() {
     let csvContent = csvRows.join("\r\n");
     let fileName = (startDate && endDate) 
         ? `Harvest_Report_${startDate}_to_${endDate}.csv` 
-        : `Harvest_Report_All.csv`;
+        : `Harvest_Report_${getTodayStr()}.csv`;
     
     downloadCSVFile(csvContent, fileName);
 }
@@ -728,7 +741,7 @@ function saveModalFarmer() {
     }
 
     if (landId) {
-        let existingLand = existingFarmer.lands.find(l => String(l.landId).trim() === landId);
+        let existingLand = existingFarmer.lands.find(l => String(l.landId).trim().toLowerCase() === landId.toLowerCase());
         if (!existingLand) {
             existingFarmer.lands.push({
                 landId: landId,
@@ -981,7 +994,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
                         if (cleanLandId) {
                             for (let f of farmers) {
-                                if (f.lands && f.lands.some(l => String(l.landId || '').trim() === cleanLandId)) {
+                                if (f.lands && f.lands.some(l => String(l.landId || '').trim().toLowerCase() === cleanLandId.toLowerCase())) {
                                     targetFarmer = f;
                                     break;
                                 }
@@ -1021,7 +1034,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         if (landId) {
                             if (!targetFarmer.lands) targetFarmer.lands = [];
 
-                            let existingLand = targetFarmer.lands.find(l => String(l.landId || '').trim() === cleanLandId);
+                            let existingLand = targetFarmer.lands.find(l => String(l.landId || '').trim().toLowerCase() === cleanLandId.toLowerCase());
 
                             if (!existingLand) {
                                 existingLand = {
