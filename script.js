@@ -1271,3 +1271,27 @@ function toggleAddForm() {
 function saveNewFarmerLand() {
     saveModalFarmer();
 }
+// WebView & Mint Apps కోసం సరిచేసిన CSV డౌన్‌లోడ్ ఫంక్షన్
+function downloadCSVFile(csvContent, fileName) {
+    // UTF-8 BOM తో కంటెంట్‌ను సిద్ధం చేయడం
+    let fullContent = "\uFEFF" + csvContent;
+
+    // WebView లో Blob సమస్యలు రాకుండా Data URI (Base64) కి మార్చడం
+    let base64Data = btoa(unescape(encodeURIComponent(fullContent)));
+    let dataUri = 'data:text/csv;charset=utf-8;base64,' + base64Data;
+
+    let link = document.createElement("a");
+    link.href = dataUri;
+    link.setAttribute("download", fileName);
+    link.style.display = "none";
+    
+    document.body.appendChild(link);
+    link.click();
+
+    // 2 సెకన్ల తర్వాత Cleanup చేయడం
+    setTimeout(() => {
+        if (document.body.contains(link)) {
+            document.body.removeChild(link);
+        }
+    }, 2000);
+}
